@@ -3,6 +3,11 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
+  nixConfig = {
+    allowUnfree = true;
+    cudaSupport = true;
+  };
+
   outputs = {
     self,
     nixpkgs,

@@ -7,7 +7,8 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-device = torch.device('cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Device: {device}")
 
 def data_loader(data_dir, batch_size, random_seed=42, valid_size=0.1, shuffle=True, test=False):
     # Values specific to CIFAR-10 dataset
