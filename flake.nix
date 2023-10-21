@@ -9,7 +9,7 @@
   }: let
     system = "x86_64-linux";
     pkgs = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=true; };
-    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torchWithCuda torchvision onnx numpy pillow ]);
+    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow ]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
