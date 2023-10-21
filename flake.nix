@@ -14,7 +14,7 @@
   }: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system}.pkgs;
-    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow ]);
+    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torch.override{cudaSupport=true;} torchvision onnx numpy pillow ]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
