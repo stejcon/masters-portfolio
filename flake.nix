@@ -8,13 +8,19 @@
     nixpkgs,
   }: let
     system = "x86_64-linux";
-    pkgs = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=true; };
-    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow ]);
+    pkgsgpu = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=true; };
+    pkgscpu = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=false; };
+    pkgs = import nixpkgs { system = "x86_64-linux"; };
+    pyEnvGPU = pkgsgpu.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow ]);
+    pyEnvCPU = pkgscpu.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow ]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
-      default = pkgs.mkShell {
-        packages = [ pyEnv ];
+      gpu = pkgs.mkShell {
+        packages = [ pyEnvGPU ];
+      };
+      cpu = pkgs.mkShell {
+        packages = [ pyEnvCPU ];
       };
     };
   };
