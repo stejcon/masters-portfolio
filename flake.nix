@@ -3,18 +3,13 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  nixConfig = {
-    allowUnfree = true;
-    cudaSupport = true;
-  };
-
   outputs = {
     self,
     nixpkgs,
   }: let
     system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system}.pkgs;
-    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torch.override{cudaSupport=true;} torchvision onnx numpy pillow ]);
+    pkgs = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=true; };
+    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torchWithCuda torchvision onnx numpy pillow ]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
