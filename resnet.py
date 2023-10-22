@@ -108,22 +108,15 @@ class ResNet(nn.Module):
         x = self.maxpool(x)
         x = self.layer0(x)
         x = self.layer1(x)
-
-        # Branch logic should go here
-        # Make a deep copy of x, calculate softmax of x, calculate entropy of the result, and compare against threshold T
-        # Note: https://github.com/kunglab/branchynet/blob/a33d136af511a4852715fcf189ee9405543056d7/experiment_resnet_cifar10.py#L93
-        # Branchynet just tries a bunch of different T values to see the accuracy of each, this is not done automatically
-        tmp = nn.Linear(in_features=x[-1].out_features, out_features=num_classes)
-        probabilities = nn.Softmax()
+        #tmp = nn.Linear(in_features=x[-1].out_features, out_features=num_classes)
+        #probabilities = nn.Softmax()
 
         # TODO: Entropy calculation is
         # entropy = -torch.sum(probabilities * torch.log(probabilities + 1e-8), dim=1)
-        # Turn this into a layer
-
         # 0.5 is the threshold, need to scan across T
         # Need to setup a forward hook to actually get values to do check here
-        if (entropy < 0.5):
-            return probabilities
+        # if (entropy < 0.5):
+        #     return probabilities
 
         x = self.layer2(x)
         x = self.layer3(x)
@@ -134,51 +127,123 @@ class ResNet(nn.Module):
 
         return x
 
+class ResnetLayer1(ResNet):
+    def __init__(self, block, layers, num_classes = 10):
+        super(ResnetLayer1, self).__init__(block, layers, num_classes = 10)
+        self.linear = nn.Linear(160000, num_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        x = self.layer0(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear(x)
+        return x
+
+class ResnetLayer2(ResNet):
+    def __init__(self, block, layers, num_classes = 10):
+        super(ResnetLayer2, self).__init__(block, layers, num_classes = 10)
+        self.linear = nn.Linear(61952, num_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        x = self.layer0(x)
+        x = self.layer1(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear(x)
+        return x
+
+class ResnetLayer3(ResNet):
+    def __init__(self, block, layers, num_classes = 10):
+        super(ResnetLayer3, self).__init__(block, layers, num_classes = 10)
+        self.linear = nn.Linear(16384, num_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        x = self.layer0(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear(x)
+        return x
+
+class ResnetLayer4(ResNet):
+    def __init__(self, block, layers, num_classes = 10):
+        super(ResnetLayer4, self).__init__(block, layers, num_classes = 10)
+        self.linear = nn.Linear(512, num_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.maxpool(x)
+        x = self.layer0(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear(x)
+        return x
+
 num_classes = 10
 num_epochs = 20
 batch_size = 16
 learning_rate = 0.01
 
-# This is ResNet50
-# Resnet50, Resnet101 and resnet152 all have a similar architecture, Resnet18 and Resnet34 are different
-# Not an issue for me, just use the bigger models since branches shouldnt matter on smaller models
-# Come back and try the smaller ones later when the branches actually work
-model = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
-
+def train(model):
+    model.train()
 # Loss and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)  
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)  
 
-import gc
-total_step = len(train_loader)
-print(f"Total Steps: {total_step}")
+    import gc
+    total_step = len(train_loader)
+    print(f"Total Steps: {total_step}")
 
-for epoch in range(num_epochs):
-    for i, (images, labels) in enumerate(train_loader):  
-        # Move tensors to the configured device
-        images = images.to(device)
-        labels = labels.to(device)
-        
-        # Forward pass
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        print(f"Image: {i}, Label: {labels}")
-        del images, labels, outputs
-        torch.cuda.empty_cache()
-        gc.collect()
-
-    print (f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+    for epoch in range(num_epochs):
+        for i, (images, labels) in enumerate(train_loader):  
+            # Move tensors to the configured device
+            images = images.to(device)
+            labels = labels.to(device)
             
-    # Validation
+            # Forward pass
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            print(f"Image: {i}, Label: {labels}")
+            del images, labels, outputs
+            torch.cuda.empty_cache()
+            gc.collect()
+
+        print (f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+                
+        # Validation
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for images, labels in valid_loader:
+                images = images.to(device)
+                labels = labels.to(device)
+                outputs = model(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+                del images, labels, outputs
+        
+            print('Accuracy of the network on the {} validation images: {} %'.format(5000, 100 * correct / total)) 
+
     with torch.no_grad():
         correct = 0
         total = 0
-        for images, labels in valid_loader:
+        for images, labels in test_loader:
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
@@ -186,19 +251,34 @@ for epoch in range(num_epochs):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
             del images, labels, outputs
-    
-        print('Accuracy of the network on the {} validation images: {} %'.format(5000, 100 * correct / total)) 
 
-with torch.no_grad():
-    correct = 0
-    total = 0
-    for images, labels in test_loader:
-        images = images.to(device)
-        labels = labels.to(device)
-        outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-        del images, labels, outputs
+        print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
 
-    print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
+# This is ResNet50
+# Resnet50, Resnet101 and resnet152 all have a similar architecture, Resnet18 and Resnet34 are different
+# Not an issue for me, just use the bigger models since branches shouldnt matter on smaller models
+# Come back and try the smaller ones later when the branches actually work
+model0 = ResnetLayer1(ResidualBlock, [3, 4, 6, 3]).to(device)
+train(model0)
+model0.eval()
+torch.save(model0.state_dict(), "model0")
+
+model1 = ResnetLayer2(ResidualBlock, [3, 4, 6, 3]).to(device)
+train(model1)
+model1.eval()
+torch.save(model1.state_dict(), "model1")
+
+model2 = ResnetLayer3(ResidualBlock, [3, 4, 6, 3]).to(device)
+train(model2)
+model2.eval()
+torch.save(model2.state_dict(), "model2")
+
+model3 = ResnetLayer4(ResidualBlock, [3, 4, 6, 3]).to(device)
+train(model3)
+model3.eval()
+torch.save(model3.state_dict(), "model3")
+
+modelfull = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
+train(modelfull)
+modelfull.eval()
+torch.save(modelfull.state_dict(), "modelfull")
