@@ -8,20 +8,14 @@
     nixpkgs,
   }: let
     system = "x86_64-linux";
-    pkgsgpu = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=true; };
-    pkgscpu = import nixpkgs { system = "x86_64-linux"; config.allowUnfree = true; config.cudaSupport=false; };
-    pkgs = import nixpkgs { system = "x86_64-linux"; };
-    # TODO: Do I need two separate environments, or will CPU still work with cuda version of torch?
-    pyEnvGPU = pkgsgpu.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow ]);
-    pyEnvCPU = pkgscpu.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow matplotlib jupyter ipython ]);
+    # NOTE: If torch with cuda takes too long to build (took 6 hours with an i7 12th gen laptop) change cuda support to false
+    pkgs = import nixpkgs { inherit system; config.allowUnfree = true; config.cudaSupport=true; };
+    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torch torchvision onnx numpy pillow matplotlib jupyter ipython ]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
-      gpu = pkgs.mkShell {
-        packages = [ pyEnvGPU ];
-      };
-      cpu = pkgs.mkShell {
-        packages = [ pyEnvCPU ];
+      default = pkgs.mkShell {
+        packages = [ pyEnv ];
         shellHook = "jupyter notebook";
       };
     };
