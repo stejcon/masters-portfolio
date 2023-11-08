@@ -6,6 +6,10 @@ import torch.nn as nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+import sys
+import time
+import matplotlib.pyplot as plt
+from math import log
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Device: {device}")
@@ -108,19 +112,8 @@ class ResNet(nn.Module):
         x = self.maxpool(x)
         x = self.layer0(x)
         x = self.layer1(x)
-        #tmp = nn.Linear(in_features=x[-1].out_features, out_features=num_classes)
-        #probabilities = nn.Softmax()
-
-        # TODO: Entropy calculation is
-        # entropy = -torch.sum(probabilities * torch.log(probabilities + 1e-8), dim=1)
-        # 0.5 is the threshold, need to scan across T
-        # Need to setup a forward hook to actually get values to do check here
-        # if (entropy < 0.5):
-        #     return probabilities
-
         x = self.layer2(x)
         x = self.layer3(x)
-
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
@@ -254,31 +247,129 @@ def train(model):
 
         print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
 
+def test(model):
+    entropyVsCorrectness = {}
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        i = 0
+        j = 0
+        total_execution_time = 0
+        # print(f"Number of sections: {len(test_loader)}")
+        for images, labels in test_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            start_time = time.time()
+            outputs = model(images)
+            end_time = time.time()
+            y_hat = torch.nn.functional.softmax(outputs, dim=1)
+            entropy = -torch.sum(y_hat * torch.log(y_hat + 1e-10), dim=1)
+            _, predicted = torch.max(outputs.data, 1)
+            print(f"Entropy: {entropy}, Correct: {predicted == labels}")
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            # print(f"Outputs: {outputs}, Labels: {labels}")
+            for a, b in zip(entropy, predicted == labels):
+                entropyVsCorrectness[j] = (a.item(), b.item())
+                j += 1
+            total_execution_time += (end_time - start_time)
+            i = i + 1
+
+        print(f"Dict: {entropyVsCorrectness}")
+# Initialize empty lists for True and False values
+        true_list = []
+        false_list = []
+
+# Iterate through the dictionary and populate the lists
+        for key, value in entropyVsCorrectness.items():
+            if value[1] is True:
+                true_list.append(value[0])
+            else:
+                false_list.append(value[0])
+
+# Sort the lists in ascending order
+        true_list.sort()
+        false_list.sort()
+# Create the scatterplot
+        plt.scatter(range(len(true_list)), true_list, label='True', color='blue', marker='o')
+        plt.scatter(range(len(false_list)), false_list, label='False', color='red', marker='x')
+
+# Add a legend
+        plt.legend()
+
+# Add a title
+        plt.title("Scatterplot of True and False Values")
+
+# Show the plot
+        plt.show()
+        print(f"Accuracy of the network on the {10000} test images: {100 * correct / total}% and on average inference took {total_execution_time/i} seconds")
+
+def fullTest():
+    model0state = torch.load("models/model0", map_location=torch.device("cpu"))
+    model1state = torch.load("models/model1", map_location=torch.device("cpu"))
+    model2state = torch.load("models/model2", map_location=torch.device("cpu"))
+    model3state = torch.load("models/model3", map_location=torch.device("cpu"))
+    modelfullstate = torch.load("models/modelfull", map_location=torch.device("cpu"))
+
+    model0 = ResnetLayer1(ResidualBlock, [3, 4, 6, 3]).to(device)
+    model1 = ResnetLayer2(ResidualBlock, [3, 4, 6, 3]).to(device)
+    model2 = ResnetLayer3(ResidualBlock, [3, 4, 6, 3]).to(device)
+    model3 = ResnetLayer4(ResidualBlock, [3, 4, 6, 3]).to(device)
+    modelfull = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
+
+    model0.load_state_dict(model0state)
+    model1.load_state_dict(model1state)
+    model2.load_state_dict(model2state)
+    model3.load_state_dict(model3state)
+    modelfull.load_state_dict(modelfullstate)
+
+    models = [model0, model1, model2, model3, modelfull]
+    for model in models:
+        test(model)
+
+def fullTrain():
 # This is ResNet50
 # Resnet50, Resnet101 and resnet152 all have a similar architecture, Resnet18 and Resnet34 are different
 # Not an issue for me, just use the bigger models since branches shouldnt matter on smaller models
 # Come back and try the smaller ones later when the branches actually work
-model0 = ResnetLayer1(ResidualBlock, [3, 4, 6, 3]).to(device)
-train(model0)
-model0.eval()
-torch.save(model0.state_dict(), "model0")
+    model0 = ResnetLayer1(ResidualBlock, [3, 4, 6, 3]).to(device)
+    train(model0)
+    model0.eval()
+    # TODO: Save the architecture as well
+    torch.save(model0.state_dict(), "models/model0")
 
-model1 = ResnetLayer2(ResidualBlock, [3, 4, 6, 3]).to(device)
-train(model1)
-model1.eval()
-torch.save(model1.state_dict(), "model1")
+    model1 = ResnetLayer2(ResidualBlock, [3, 4, 6, 3]).to(device)
+    train(model1)
+    model1.eval()
+    torch.save(model1.state_dict(), "models/model1")
 
-model2 = ResnetLayer3(ResidualBlock, [3, 4, 6, 3]).to(device)
-train(model2)
-model2.eval()
-torch.save(model2.state_dict(), "model2")
+    model2 = ResnetLayer3(ResidualBlock, [3, 4, 6, 3]).to(device)
+    train(model2)
+    model2.eval()
+    torch.save(model2.state_dict(), "models/model2")
 
-model3 = ResnetLayer4(ResidualBlock, [3, 4, 6, 3]).to(device)
-train(model3)
-model3.eval()
-torch.save(model3.state_dict(), "model3")
+    model3 = ResnetLayer4(ResidualBlock, [3, 4, 6, 3]).to(device)
+    train(model3)
+    model3.eval()
+    torch.save(model3.state_dict(), "models/model3")
 
-modelfull = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
-train(modelfull)
-modelfull.eval()
-torch.save(modelfull.state_dict(), "modelfull")
+    modelfull = ResNet(ResidualBlock, [3, 4, 6, 3]).to(device)
+    train(modelfull)
+    modelfull.eval()
+    torch.save(modelfull.state_dict(), "models/modelfull")
+
+def main():
+    if len(sys.argv) != 2:
+        print("Usage: python resnet.py <argument>")
+
+    argument = sys.argv[1]
+
+    if argument == "--full-train":
+        fullTrain()
+    elif argument == "--full-test":
+        fullTest()
+    else:
+        print(f"Unknown argument: {argument}")
+
+if __name__ == "__main__":
+    main()
