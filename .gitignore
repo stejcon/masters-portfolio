@@ -1,3 +1,5 @@
 .direnv
 data
 models
+.ipynb_checkpoints
+*.json
