@@ -1,5 +1,5 @@
 .direnv
 data
-models
+*models
 .ipynb_checkpoints
 *.json
