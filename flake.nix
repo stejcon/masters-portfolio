@@ -9,7 +9,7 @@
   }: let
     system = "x86_64-linux";
     pkgs = import nixpkgs { inherit system; config.allowUnfree = true; config.cudaSupport=true; };
-    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torchvision-bin onnx numpy pillow matplotlib jupyter ipython ]);
+    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torchvision-bin onnx numpy pillow matplotlib jupyter ipython scipy ]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
