@@ -4,9 +4,9 @@
 // Take a look at the file `template.typ` in the file panel
 // to customize this template and discover how it works.
 #show: project.with(
-  title: "Evaluting the Effects of Early Exits on the Performance of Convolutional Neural Networks",
+  title: "Evaluting the Effects of Early Exits on the Performance of Convolutional Neural Networks: Status Report",
   authors: (
-    (name: "Stephen Condon", email: "stephen.condon5@mail.dcu.ie"),
+    (name: "Stephen Condon", email: "stephen.condon5@mail.dcu.ie", studentId: "19403354"),
   ),
   date: "January 8, 2024",
 )
@@ -18,17 +18,22 @@
   strong(it)
 }
 
-#outline(indent: auto)
+#outline(title: "Table of Contents", indent: auto)
+#outline(title: "Table of Figures", target: figure.where(kind: image))
 
 = Introduction
 Deep Learning has grown in use throughout many industries in recent years. One of the most common types of network in deep learning is the Convolutional Neural Network (CNN). CNNs are mostly used for image based tasks, such as object identification, getting an objects bounding box and facial recognition, although they can also be used for timeseries data. One of the biggest issues with using the best models is they may be too large to be useful in realtime. To run inferences at 60fps, inferences need to average #calc.round(1000/60, digits: 2)ms. On consumer hardware, a model such as ResNet152 may take over 100ms to execute, averaging about 8 to 10fps. Using the @inferencetimetest script on an i7-1260P to measure the inference time of a ResNet152 model on the CIFAR10 dataset, the average inference time was 356.3ms, which is #calc.round(1000/356.3, digits: 2)fps. To make these large models usable in cases where a high inference rate is needed, two kinds of optimisations can be used; training-time optimisations and compile-time optimisations. Training-time optimisations are any methods used to lower the final inference time during the training of a model. Compile-time optimisations are any methods used to lower the inference time during the compilation of the model into a usable binary. Options for both of these solutions may be considered.
 
 = Background Theory
-Early exiting in neural networks is an area that hasn't received much acemedic interest, with few papers being released on the topic in recent years. The key idea behind early exiting is that a network can already have identified the correct output without running through the entire model. An easy input can be correctly classified without the need for the entire depth of state-of-the-art models. To solve this, many exits may be placed somewhere along the model. At each of these exits, some condition is used as a measure of how confident the model is that its current classification is the correct one. For example, a CNN doing object identification may be able to correctly classify an image of a dog early in the network, but for an image of a complex machine, the network may need to run fully through to correctly identify it. If a good condition is used to estimate the likelyhood of the current classification being correct, the average inference time can be greatly lowered. Some of the issues to consider with this approach are the time taken to consider exiting which may grow significant as the number of exits grows large and as an exits complexity increases, trying to analyse different exit architectures (what layers are included in the exit), and the amount of training time needed to search for the best placement for branches. However, the biggest problem for widespread use of early exiting is the need to change the architecture of a neural network to use exits. Currently, model architectures need to be manually changed to make use of exits which can be a significant amount of work to do after training the main model. Ideally, whatever framework or compiler is used should automatically add exits in optimal locations for the model.
+Early exiting in neural networks is an area that hasn't received much acemedic interest, with few papers being released on the topic in recent years. The key idea behind early exiting is that a network can already have identified the correct output without running through the entire model. An easy input can be correctly classified without the need for the entire depth of state-of-the-art models. To solve this, many exits may be placed somewhere along the model. At each of these exits, some condition is used as a measure of how confident the model is that its current classification is the correct one. For example, a CNN doing object identification may be able to correctly classify an image of a dog early in the network, but for an image of a complex machine, the network may need to use all layers to correctly classify the input. If a good condition is used to estimate the likelyhood of the current classification being correct, the average inference time can be greatly lowered. 
 
-One of the most cited ways to add early exiting is the BranchyNet architecture, described in @BranchyNet. This architecture describes how exits should be structured when added to a model. In particular is describes how for CNNs, an exit should consist of some number of convolutional layers (the earlier the exit, the more convolutional layers) and a fully connected layer. Each branch can then be trained independently. The entropy of the softmax of the output of the early exit is used as the condition. That is, `e = entropy(softmax(y))`. This value is a measure of how confident the model is about having accurately identified the correct classification. If the model is unsure, many of the possible classes will have a high value in the output, resulting in a high entropy. If the model has narrowed in on only a few possible options for the output class, most of the classes in the output will have a tiny value resulting in a smaller entropy. Each exit also has an associated threshold entropy value. If `e` is less than the threshold `T`, then the softmax of the output is returned. That is, `if e < T then return softmax(y) else continue`. This architecture is the basis of most of the recent research into early exiting. However, the paper discusses neither the optimal location of branches or the optimal number of branches per model. Ideally, a method of added early exiting automatically to an architecture should be smart enough to find the optimal placement and number of branches to use for a given architecture. The threshold for the exit is also presented as a hyperparameter for each branch to be learned during training-time.
+Some of the issues to consider with this approach are the time taken to decide on whether to exit (which may grow significant as the number of exits grows large and as an exits complexity increases), trying to analyse different exit architectures, specifically exits including or excluding pooling layers, and the amount of training time needed to search for the best placement for branches. However, the biggest problem for widespread use of early exiting is the need to change the architecture of a neural network to use exits. Currently, model architectures need to be manually changed to make use of exits which may need a significant amount of analysis after already training the main model. Ideally, whatever framework or compiler is used should automatically add exits in optimal locations for the model.
 
-@optimalbranchplacement discusses an algorithm which, when given a list of different locations for branches, will analyse which combination of locations is ideal. However, it is impractical to give a list of all possible combinations of exits to the algorithm, as an early exit could be put after every layer of a network, but that would be computationally expensive. Ideally, a method of automatically adding early exits shouldn't need to exhaustively check every possible combination, but should instead only look at combinations at least better than the current considered batch of early exits. This paper also noted that, instead of having convolutional layers followed by a fully-connected layer, just having a fully-connected layer performs approximately equally to more complex exits.
+One of the most cited ways to add early exiting is the BranchyNet architecture, described in @BranchyNet. This architecture describes how exits should be structured when added to a model. In particular it describes how, for CNNs, an exit should consist of some number of convolution layers (the earlier the exit, the more convolutional layers) and a fully connected layer. Each branch can then be trained independently. The entropy of the softmax of the output of the early exit is used as the condition referred to as `e` in this report. That is, `e = entropy(softmax(y))`. This value is a measure of how confident the model is that it has accurately classified the input. If the model is unsure, many of the possible classes will have a high value in the output, resulting in a high entropy. If the model has narrowed in on only a few possible options for the output class, most of the classes in the output will have a tiny value resulting in a smaller entropy. Each exit also has an associated threshold entropy value. If `e` is less than the threshold `T`, the model presumes it is correct, and the softmax of the output is returned. That is, `if e < T then return softmax(y) else continue`. This architecture is the basis of most of the recent research into early exiting. However, @BranchyNet discusses neither the optimal location of branches or the optimal number of branches per model. Ideally, a method for adding early exits automatically to an architecture should be smart enough to find the optimal placement and number of branches to use for a given architecture. The threshold for the exit is also presented as a hyperparameter for each branch to be learned during training-time in the paper, but may be decided by other methods.
+
+@optimalbranchplacement discusses an algorithm which, when given a set of different combinations of branches, will analyse which combination of branches reduces the average inference time the most. However, it is impractical to give a list of all possible combinations of exits to the algorithm, as an early exit could in theory be placed after every layer of a network, but that may be computationally expensive. Ideally, a method of automatically adding early exits shouldn't need to exhaustively check every possible combination, but should instead only look at combinations at least better than the current considered batch of early exits. @optimalbranchplacement also noted that, instead of having convolutional layers followed by a fully-connected layer, just having a fully-connected layer performs approximately equally to more complex exits.
+
+@earlyexitmasters looks at different architectures that can be used as an exit, including single fully-connected layers, multiple fully-connected, and fully-connected layers combined with some pooling or batch normalisation layers. All exits shown in this paper have the confidence value of the model bounded between 0 and 1 by using a sigmoid function. Both the confidence value and the actual output from the network are outputted from the exit. A custom loss function is also presented that takes into account the cost of the model in terms of floating point operations (FLOPs), preferring lower cost exits, and also the accuracy and confidence of the model. Exits are also distributed using both self-similar methods and linear methods. This paper shows significant improves in performance without a significant decrease in accuracy. For example, an early exit ResNet152 trained on the SVHN database needs 2% of the relative cost of the original model, while losing 1% accuracy from 95.68% to 94.68%. Most models can keep the same accuracy with 20% of the relative cost. This paper shows how having an exit can have significant savings, but the exit has the confidence as a learnable trait, which differs from the solutions offered by this project.
 
 Early exiting is also useful for moving towards edge computing. As neural networks uses more personal data, there is a greater need for privacy, and one of the best ways to do that is to have models running on edge devices, such as mobile phones and personal computers. Some architectures have been proposed to run a section of the model on an edge device, and if that section of the model is not able to exit confidently, then the rest of the inference is carried out in a central server. Early exiting from BranchyNet is used to assess how confident the edge device is about having an accurate output. One example of this is @TowardsEdgeComputing, which describes how to split the network to function across multiple devices.
 
@@ -56,11 +61,11 @@ First, the entire model is trained on the dataset being used and the final accur
 #figure(
   image("./image.png"),
   caption: [
-    Sample graphs of Accuracy and Dataset Progress vs Entropy
+    Sample Graphs of Accuracy and Dataset Progress vs Entropy
   ],
 ) <graphs>
 
-=== Current Progress on Solution
+== Current Progress on Solution
 So far, multiple ResNet50 models have been generated with the final exit simulating a different branch exit. These models were used to assess whether it was possible for exits to match the accuracy of the full model while being used enough times to make implementing them worth it. Some initial results indicate that an exit placed less than half way through a ResNet50 model can exit on approximately 80% of inferences when tested against the CIFAR10 dataset. These models will need to be consolidated into one model with multiple exits first and the test setup changed to ensure that PyTorch's autograd engine is working as expected. 
 
 The method for choosing when a branch should be kept also hasn't yet been decided on. The number of operations in an exit may be so low that it isn't worth removing branches. Another heuristic being considered is if a branch does not exit from a percentage of the database higher than the percentage of the way through the model the branch is placed at, it should be removed. Multiple methods may need to be tested and this heuristic may turn out to be an important result.
@@ -69,56 +74,97 @@ The choice of models and datasets to use during testing is also important. The m
 
 The architecture of branches may also need to be taken into consideration. While starting with a single fully-connected layer seems to work from initial testing and is suggested to be sufficient in literature @BranchyNet @optimalbranchplacement, there appears to be no exhaustive comparison of different exit architectures. Swapping the branch architecture to including pooling layers along with multiple convolution and fully-connected layers may or may not prove to be more performant. While this may fall out of scope due to time restrictions, it would also be an important analysis for the performance of branches.
 
-#pagebreak()
-= Project Plan for Semester 2
-#timeliney.timeline(
-  show-grid: true,
-  {
-    import timeliney: *
-
-    headerline(
-      group(..range(13).map(n => strong("W" + str(n+1)))),
-    )
+= Project Timeline
+#figure(
+  timeliney.timeline(
+    show-grid: true,
+    {
+      import timeliney: *
   
-    taskgroup(title: [*Status Report*], {
-      task("Status Report", (0, 1), style: (stroke: 2pt + gray))
-      task("Presentation Video", (0, 1), style: (stroke: 2pt + gray))
-      task("Interview", (1, 2), style: (stroke: 2pt + gray))
-    })
+      headerline(group(([*Semester 2*], 13)))
+      headerline(
+        group(..range(13).map(n => strong("W" + str(n+1)))),
+      )
+    
+      taskgroup(title: [*Status Report*], {
+        task("Status Report", (0, 1), style: (stroke: 2pt + gray))
+        task("Presentation Video", (0, 1), style: (stroke: 2pt + gray))
+        task("Interview", (1, 2), style: (stroke: 2pt + gray))
+      })
+  
+      taskgroup(title: [*Implementation*], {
+        task("Consolidate test models", (1, 2), style: (stroke: 2pt + gray))
+        task("Implement algorithm", (2, 5), style: (stroke: 2pt + gray))
+        task("Train models", (5, 7), style: (stroke: 2pt + gray))
+        task("Analyse results", (6, 7), style: (stroke: 2pt + gray))
+      })
+  
+      taskgroup(title: [*Final Paper*], {
+        task("First draft", (6, 8), style: (stroke: 2pt + gray))
+        task("Gather extra results", (8, 9), style: (stroke: 2pt + gray))
+        task("Finalise paper", (9, 10), style: (stroke: 2pt + gray))
+        task("Collect all appendices", (10, 11), style: (stroke: 2pt + gray))
+        task("Final interview", (11, 13), style: (stroke: 2pt + gray))
+      })
+  
+      milestone(
+        at: 1,
+        style: (stroke: (dash: "dashed")),
+        align(center, [
+          *Status Report Due*\
+          22/01/2024
+        ])
+      )
+  
+      milestone(
+        at: 11,
+        style: (stroke: (dash: "dashed")),
+        align(center, [
+          *Paper Submission*\
+          25/03/2024
+        ])
+      )
+    }
+  ),
+  caption: [
+    Current Timeline for Semester 2
+  ],
+) <ganttchart>
 
-    taskgroup(title: [*Implementation*], {
-      task("Consolidate test models", (1, 2), style: (stroke: 2pt + gray))
-      task("Implement algorithm", (2, 5), style: (stroke: 2pt + gray))
-      task("Train models", (5, 7), style: (stroke: 2pt + gray))
-      task("Analyse results", (6, 7), style: (stroke: 2pt + gray))
-    })
+#figure(
+  timeliney.timeline(
+    show-grid: true,
+    {
+      import timeliney: *
+  
+      headerline(group(([*Year 4*], 2)), group(([*Year 5*], 1)))
+      headerline(group(([*Semester 1*], 1)), group(([*Semester 2*], 1)), group(([*Semester 1*], 1)))
 
-    taskgroup(title: [*Final Paper*], {
-      task("First draft", (6, 8), style: (stroke: 2pt + gray))
-      task("Gather extra results", (8, 9), style: (stroke: 2pt + gray))
-      task("Finalise paper", (9, 10), style: (stroke: 2pt + gray))
-      task("Collect all appendices", (10, 11), style: (stroke: 2pt + gray))
-      task("Final interview", (11, 13), style: (stroke: 2pt + gray))
-    })
+      taskgroup(title: [*Research Question*], {
+        task("Finding Research Area", (0, 4/12), style: (stroke: 2pt + gray))
+        task("Finding Relevant Papers", (4/12, 8/12), style: (stroke: 2pt + gray))
+        task("Literature Review", (8/12, 1), style: (stroke: 2pt + gray))
+      })
+      
+      taskgroup(title: [*Project Proposal*], {
+        task("Setting Project Goals\n& Proposing Solutions", (1, 1+4/12), style: (stroke: 2pt + gray))
+        task("Create Project Presentation", (1+4/12, 1+5/12), style: (stroke: 2pt + gray))
+        task("Project Planning and Proposal", (1+5/12, 2), style: (stroke: 2pt + gray))
+      })
 
-    milestone(
-      at: 1,
-      style: (stroke: (dash: "dashed")),
-      align(center, [
-        *Status Report Due*\
-        22/01/2024
-      ])
-    )
-
-    milestone(
-      at: 11,
-      style: (stroke: (dash: "dashed")),
-      align(center, [
-        *Paper Submission*\
-        25/03/2024
-      ])
-    )
-  }
+      taskgroup(title: [*Project Proposal*], {
+        task("Creating Dev Environment", (2, 2+2/12), style: (stroke: 2pt + gray))
+        task("Learning Code Generation", (2, 2+3/12), style: (stroke: 2pt + gray))
+        task("Modifying Compiler Passes", (2+3/12, 2+5/12), style: (stroke: 2pt + gray))
+        task("Pivot to PyTorch solution", (2+5/12, 2+7/12), style: (stroke: 2pt + gray))
+        task("Branched Model Training", (2+7/12, 3), style: (stroke: 2pt + gray))
+        task("Metric Creation", (2+7/12, 3), style: (stroke: 2pt + gray))
+      })
+    }
+  ),
+  caption: [
+    Work Already Completed
+  ],
 )
 
 #show bibliography: set heading(numbering: "1.1")
@@ -129,7 +175,7 @@ The architecture of branches may also need to be taken into consideration. While
 ```py 
 import torch
 import torchvision.transforms as transforms
-from torchvision.models import resnet152
+from torchvision.models import resnet18, resnet34, resnet50, resnet101, resnet152
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import time
@@ -169,8 +215,7 @@ def load_cifar10(batch_size):
 # Set device (CPU or GPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Load ResNet152 model
-resnet152_model = resnet152(pretrained=True).to(device)
+models = [model.to(device) for model in [resnet18(), resnet34(), resnet50(), resnet101(), resnet152()]]
 
 # Specify batch size
 batch_size = 64
@@ -178,7 +223,7 @@ batch_size = 64
 # Load datasets
 cifar10_dataloader = load_cifar10(batch_size)
 
-# Measure average inference time for CIFAR-10
-cifar10_avg_time = measure_inference_time(resnet152_model, cifar10_dataloader, device)
-print(f'Average Inference Time on CIFAR-10: {cifar10_avg_time:.4f} seconds')
+inferenceTimes = [measure_inference_time(model, cifar10_dataloader, device) for model in models]
+for iTime in inferenceTimes:
+    print(f'Average Inference Time on CIFAR-10: {iTime:.4f} seconds')
 ```
