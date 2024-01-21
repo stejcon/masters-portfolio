@@ -40,13 +40,6 @@ def load_cifar10(batch_size):
 # Set device (CPU or GPU)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Load ResNet152 model
-resnet18_model = resnet50().to(device)
-resnet34_model = resnet50().to(device)
-resnet50_model = resnet50().to(device)
-resnet101_model = resnet50().to(device)
-resnet152_model = resnet152().to(device)
-
 models = [model.to(device) for model in [resnet18(), resnet34(), resnet50(), resnet101(), resnet152()]]
 
 # Specify batch size
