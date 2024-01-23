@@ -11,6 +11,10 @@
   = Evaluting the Effects of Early Exits on the Performance of Convolutional Neural Networks: Status Report
   #v(2em)
 
+  Student: Stephen Condon, 19403354
+
+  Supervisor: Dr Robert Sadlier
+
   #datetime.today().display("[day]/[month]/[year]")
 ]
 
@@ -137,6 +141,14 @@
   - Use multiple datasets for testing, and potentially multiple models.
   - Code generation needs to be completed
   - Implementing the search for branch locations needs to be completed.
+
+
+  #figure(
+    image("./timeline.png"),
+    caption: [
+      _Project Plan for Semester 2_
+    ],
+  )
 ]
 
 #slide[
