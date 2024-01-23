@@ -1,4 +1,4 @@
-#import "template.typ": *
+#import "report-template.typ": *
 #import "@preview/timeliney:0.0.1"
 
 // Take a look at the file `template.typ` in the file panel
