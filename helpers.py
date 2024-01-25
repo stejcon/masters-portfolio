@@ -106,9 +106,9 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
 
-    for _ in range(epoch):
+    for e in range(epoch):
         for i, (images, labels) in enumerate(trainLoader):
-            print(i)
+            print(f"Epoch: {e}: Inference {i}")
             # Move tensors to the configured device
             images = images.to(device)
             labels = labels.to(device)
