@@ -16,7 +16,7 @@ matplotlib.use("TkAgg")
 def getDevice(gpu='cuda'):
     return torch.device(gpu if torch.cuda.is_available() else 'cpu')
 
-def Cifar10Splits(batchSize=64):
+def Cifar10Splits(batchSize=1):
     normalize = transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
     transform = transforms.Compose([transforms.Resize((224,224)), transforms.ToTensor(), normalize])
 
@@ -107,8 +107,9 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
 
     for e in range(epoch):
+        start = time.time()
         for i, (images, labels) in enumerate(trainLoader):
-            print(f"Epoch: {e}: Inference {i}")
+            print(f"Epoch {e}: Inference {i}")
             # Move tensors to the configured device
             images = images.to(device)
             labels = labels.to(device)
@@ -121,6 +122,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+        print(f"Epoch: {e} took {time.time() - start}")
                 
         # Validation
         with torch.no_grad():
