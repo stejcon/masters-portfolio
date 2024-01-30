@@ -41,6 +41,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 512, layers[3], stride = 2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512, num_classes)
+        self.num_classes = num_classes
         
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -73,6 +74,7 @@ class HalfResNet(ResNet):
     def __init__(self, block, layers, num_classes = 10):
         super(HalfResNet, self).__init__(block, layers, num_classes = 10)
         self.linear = nn.Linear(61952, num_classes)
+        self.num_classes = num_classes
 
     def forward(self, x):
         x = self.conv1(x)
@@ -99,7 +101,7 @@ class BranchedResNet(nn.Module):
         self.layer3 = self._make_layer(block, 512, layers[3], stride = 2)
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512, num_classes)
-        self.exit = nn.Linear(61952, num_classes)
+        self.num_classes = num_classes
         
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -124,7 +126,7 @@ class BranchedResNet(nn.Module):
 
         y = self.avgpool(x)
         y = y.view(x.size(0), -1)
-        y = self.exit(y)
+        y = nn.Linear(61952, self.num_classes)(y)
         y = torch.nn.functional.softmax(y, dim=1)
         entropy = -torch.sum(y * torch.log2(y + 1e-20), dim=1)
 
