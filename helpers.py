@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torch.utils.data.sampler import SubsetRandomSampler
+import generation
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -105,6 +106,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
+    exitTracker = generation.ExitTracker(type(model))
 
     for e in range(epoch):
         start = time.time()
@@ -115,7 +117,9 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             labels = labels.to(device)
             
             # Forward pass
-            outputs = model(images)
+            exitNumber, outputs = model(images)
+            print(f"Output Type: {type(outputs)}")
+            print(f"Output: {outputs}")
             loss = criterion(outputs, labels)
             
             # Backward and optimize
@@ -141,6 +145,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             
         # Update learning rate
         lr_scheduler.step()
+
+        exitTracker.transformFunction()
 
     model.eval()
     with torch.no_grad():
