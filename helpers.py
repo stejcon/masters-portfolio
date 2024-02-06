@@ -166,7 +166,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
         for images, labels in testLoader:
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images)
+            exitNumber, outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
