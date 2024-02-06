@@ -183,7 +183,6 @@ class ExitTracker:
         self.current_forward_ast = getAst(self.model.forward)
 
     def transformFunction(self):
-        print(dis.dis(self.model.forward))
         exitTransformer = AddExitTransformer()
         if not self.first_transform_complete:
             self.current_forward_ast = exitTransformer.visit(self.original_forward_ast)
@@ -193,6 +192,8 @@ class ExitTracker:
         ast.fix_missing_locations(self.current_forward_ast)
         code_object = compile(self.current_forward_ast, '', 'exec')
         exec(code_object, globals())
-        self.model.forward = globals()["forward"]
-        print("===============================")
-        print(dis.dis(self.model.forward))
+
+        # https://discuss.pytorch.org/t/how-can-i-replace-the-forward-method-of-a-predefined-torchvision-model-with-my-customized-forward-function/54224/11
+        # ^^ WHY??
+        bound_method = globals()["forward"].__get__(self.model, self.model.__class__)
+        setattr(self.model, 'forward', bound_method)
