@@ -18,8 +18,10 @@ else:
 
 # gpuString lets you define which GPU to use if there are multiple
 # Project presumes only one GPU is used
-def getDevice(gpu='cuda'):
-    return torch.device(gpu if torch.cuda.is_available() else 'cpu')
+def getDevice():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    torch.set_default_device(device)
+    return device
 
 def Cifar10Splits(batchSize=64):
     normalize = transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
