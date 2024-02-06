@@ -1,6 +1,8 @@
 import ast
 import inspect
 import textwrap
+import torch # Ignore LSP error "not accessed", needed to compile the ast code
+import torch.nn as nn # Ignore LSP error "not accessed", needed to compile the ast code
 
 ast_code = [
     ast.Assign(
@@ -165,16 +167,24 @@ class AddExitTransformer(ast.NodeTransformer):
             return [node] + ast_code
         return node
 
-getAstDump = lambda x: ast.dump(ast.parse(textwrap.dedent(inspect.getsource(x))), indent=4)
 getAst = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
+getAstDump = lambda x: ast.dump(getAst(x), indent=4)
 
-def transformFunction(forward_function):
-    visitor = AddExitTransformer()
-    ast_x = getAst(forward_function)
-    ast_x = visitor.visit(ast_x)
-    ast.fix_missing_locations(ast_x)
-    code_object = compile(ast_x, '<generated-exit>', 'exec')
-    exec(code_object, globals())
-    # TODO: This string should be known beforehand and made to not clash with any other possible function
-    forward_function = globals()["forward"]
-    print(f"{getAstDump(forward_function)}")
+class ExitTracker:
+    def __init__(self, model):
+        self.first_transform_complete = False
+        self.model = model
+        self.original_forward_ast = getAst(self.model.forward)
+        self.current_forward_ast = getAst(self.model.forward)
+
+    def transformFunction(self):
+        visitor = AddExitTransformer()
+        if not self.first_transform_complete:
+            self.current_forward_ast = visitor.visit(self.original_forward_ast)
+            self.first_transform_complete = True
+        else:
+            self.current_forward_ast = visitor.visit(self.current_forward_ast)
+        ast.fix_missing_locations(self.current_forward_ast)
+        code_object = compile(self.current_forward_ast, '', 'exec')
+        exec(code_object, globals())
+        self.model.forward = globals()["forward"]
