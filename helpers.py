@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import torch
 import torch.nn as nn
@@ -10,14 +11,17 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import generation
 
 import matplotlib
-matplotlib.use("TkAgg")
+if os.environ.get('DISPLAY') is None:
+    matplotlib.use('Agg')
+else:
+    matplotlib.use('TkAgg')
 
 # gpuString lets you define which GPU to use if there are multiple
 # Project presumes only one GPU is used
 def getDevice(gpu='cuda'):
     return torch.device(gpu if torch.cuda.is_available() else 'cpu')
 
-def Cifar10Splits(batchSize=1):
+def Cifar10Splits(batchSize=64):
     normalize = transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
     transform = transforms.Compose([transforms.Resize((224,224)), transforms.ToTensor(), normalize])
 
@@ -96,17 +100,23 @@ def graphFromJson(filePath):
     plt.xlabel("Entropy")
     plt.show()
 
+class CustomTypeError(Exception):
+    def __init__(self, expected_type, received_object):
+        self.expected_type = expected_type
+        self.received_object = received_object
+        super().__init__(f"Expected type {self.expected_type.__name__}, received {type(self.received_object).__name__}")
+
 def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
     
-    epoch = 100
+    epoch = 5
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
-    exitTracker = generation.ExitTracker(type(model))
+    exitTracker = generation.ExitTracker(model)
 
     for e in range(epoch):
         start = time.time()
@@ -115,17 +125,16 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             # Move tensors to the configured device
             images = images.to(device)
             labels = labels.to(device)
-            
-            # Forward pass
             exitNumber, outputs = model(images)
-            print(f"Output Type: {type(outputs)}")
-            print(f"Output: {outputs}")
+            
             loss = criterion(outputs, labels)
             
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            break
 
         print(f"Epoch: {e} took {time.time() - start}")
                 
@@ -136,7 +145,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             for images, labels in validLoader:
                 images = images.to(device)
                 labels = labels.to(device)
-                outputs = model(images)
+                exitNumber, outputs = model(images)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()

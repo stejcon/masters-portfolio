@@ -1,6 +1,7 @@
 import ast
 import inspect
 import textwrap
+import dis
 import torch # Ignore LSP error "not accessed", needed to compile the ast code
 import torch.nn as nn # Ignore LSP error "not accessed", needed to compile the ast code
 
@@ -48,7 +49,11 @@ ast_code = [
         value=ast.Call(
             func=ast.Call(
                 func=ast.Attribute(
-                    value=ast.Name(id='nn', ctx=ast.Load()),
+                    value=ast.Attribute(
+                        value=ast.Name(id='torch', ctx=ast.Load()),
+                        attr='nn',
+                        ctx=ast.Load()
+                    ),
                     attr='Linear',
                     ctx=ast.Load()
                 ),
@@ -178,13 +183,16 @@ class ExitTracker:
         self.current_forward_ast = getAst(self.model.forward)
 
     def transformFunction(self):
-        visitor = AddExitTransformer()
+        print(dis.dis(self.model.forward))
+        exitTransformer = AddExitTransformer()
         if not self.first_transform_complete:
-            self.current_forward_ast = visitor.visit(self.original_forward_ast)
+            self.current_forward_ast = exitTransformer.visit(self.original_forward_ast)
             self.first_transform_complete = True
         else:
-            self.current_forward_ast = visitor.visit(self.current_forward_ast)
+            self.current_forward_ast = exitTransformer.visit(self.current_forward_ast)
         ast.fix_missing_locations(self.current_forward_ast)
         code_object = compile(self.current_forward_ast, '', 'exec')
         exec(code_object, globals())
         self.model.forward = globals()["forward"]
+        print("===============================")
+        print(dis.dis(self.model.forward))
