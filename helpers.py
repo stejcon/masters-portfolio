@@ -116,7 +116,9 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             labels = labels.to(device)
             
             # Forward pass
-            outputs = model(images)
+            exitNumber, outputs = model(images)
+            print(f"Output Type: {type(outputs)}")
+            print(f"Output: {outputs}")
             loss = criterion(outputs, labels)
             
             # Backward and optimize
