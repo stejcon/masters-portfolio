@@ -136,8 +136,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             loss.backward()
             optimizer.step()
 
-            break
-
         print(f"Epoch: {e} took {time.time() - start}")
                 
         # Validation
