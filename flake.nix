@@ -8,13 +8,19 @@
     nixpkgs,
   }: let
     system = "x86_64-linux";
-    pkgs = import nixpkgs { inherit system; config.allowUnfree = true; config.cudaSupport=true; };
-    pyEnv = pkgs.python3.withPackages(ps: with ps; [ torchvision-bin onnx numpy pillow matplotlib jupyter ipython scipy ]);
+    pkgs = import nixpkgs {
+      inherit system;
+      config.allowUnfree = true;
+      config.cudaSupport = true;
+    };
+    matplotlib = pkgs.python3Packages.matplotlib.override {enableQt = true;};
+    pyEnv = pkgs.python3.withPackages (ps: with ps; [torchvision-bin onnx numpy pillow jupyter matplotlib ipython scipy pyqt5]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
       default = pkgs.mkShell {
-        packages = [ pyEnv pkgs.typst ];
+        packages = [pyEnv pkgs.typst];
+        QT_PLUGIN_PATH = with pkgs.qt5; "${qtbase}/${qtbase.qtPluginPrefix}";
       };
     };
   };

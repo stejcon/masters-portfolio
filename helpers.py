@@ -10,12 +10,6 @@ from torchvision import datasets, transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 import generation
 
-import matplotlib
-if os.environ.get('DISPLAY') is None:
-    matplotlib.use('Agg')
-else:
-    matplotlib.use('TkAgg')
-
 # gpuString lets you define which GPU to use if there are multiple
 # Project presumes only one GPU is used
 def getDevice():
