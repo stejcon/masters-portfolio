@@ -1,0 +1,14 @@
+- ( ) Calculate dimensions
+- ( ) Change training function
+-- ( ) Train main model
+-- ( ) Freeze all parameters in main model
+-- ( ) Add a branch
+-- ( ) Train branch
+-- ( ) See if it is worthwhile keeping
+-- ( ) Remove or keep
+- ( ) Add "search" function to go through the forward function like a binary tree
+-- ( ) Might need to also change training function to handle this
+- ( ) Function to get full branch accuracy
+- ( ) Function to get branch dataset % if accuracy is equal to full model
+- ( ) Do a test train of the branch model, and the manipulated full model
+- ( ) Store the branch number in json file to analyse
