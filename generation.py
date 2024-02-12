@@ -1,164 +1,169 @@
 import ast
+from ast import Assign, Name, Store, Call, Attribute, Load, Constant, UnaryOp, USub, keyword, BinOp, Mult, Return, Tuple, Lt, Compare, If, Add
 import inspect
 import textwrap
-import dis
 import torch # Ignore LSP error "not accessed", needed to compile the ast code
 import torch.nn as nn # Ignore LSP error "not accessed", needed to compile the ast code
 
-ast_code = [
-    ast.Assign(
-        targets=[ast.Name(id='y', ctx=ast.Store())],
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id='self', ctx=ast.Load()),
+exitAst = [
+    Assign(
+        targets=[Name(id='y', ctx=Store())],
+        value=Call(
+            func=Attribute(
+                value=Name(id='self', ctx=Load()),
                 attr='avgpool',
-                ctx=ast.Load()
+                ctx=Load()
             ),
-            args=[ast.Name(id='x', ctx=ast.Load())],
+            args=[Name(id='x', ctx=Load())],
             keywords=[]
         )
     ),
-    ast.Assign(
-        targets=[ast.Name(id='y', ctx=ast.Store())],
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id='y', ctx=ast.Load()),
+
+    Assign(
+        targets=[Name(id='y', ctx=Store())],
+        value=Call(
+            func=Attribute(
+                value=Name(id='y', ctx=Load()),
                 attr='view',
-                ctx=ast.Load()
+                ctx=Load()
             ),
             args=[
-                ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Name(id='x', ctx=ast.Load()),
+                Call(
+                    func=Attribute(
+                        value=Name(id='x', ctx=Load()),
                         attr='size',
-                        ctx=ast.Load()
+                        ctx=Load()
                     ),
-                    args=[ast.Constant(value=0)],
+                    args=[Constant(value=0)],
                     keywords=[]
                 ),
-                ast.UnaryOp(
-                    op=ast.USub(),
-                    operand=ast.Constant(value=1)
+                UnaryOp(
+                    op=USub(),
+                    operand=Constant(value=1)
                 )
-            ],
+            ], 
             keywords=[]
         )
     ),
-    ast.Assign(
-        targets=[ast.Name(id='y', ctx=ast.Store())],
-        value=ast.Call(
-            func=ast.Call(
-                func=ast.Attribute(
-                    value=ast.Attribute(
-                        value=ast.Name(id='torch', ctx=ast.Load()),
-                        attr='nn',
-                        ctx=ast.Load()
-                    ),
+
+    Assign(
+        targets=[Name(id='y', ctx=Store())],
+        value=Call(
+            func=Call(
+                func=Attribute(
+                    value=Name(id='nn', ctx=Load()),
                     attr='Linear',
-                    ctx=ast.Load()
+                    ctx=Load()
                 ),
                 args=[
-                    ast.Constant(value=61952),
-                    ast.Attribute(
-                        value=ast.Name(id='self', ctx=ast.Load()),
+                    Call(
+                        func=Attribute(
+                            value=Name(id='y', ctx=Load()),
+                            attr='size',
+                            ctx=Load()
+                        ),
+                        args=[Constant(value=1)],
+                        keywords=[]
+                    ),
+                    Attribute(
+                        value=Name(id='self', ctx=Load()),
                         attr='num_classes',
-                        ctx=ast.Load()
+                        ctx=Load()
                     )
                 ],
                 keywords=[]
             ),
-            args=[ast.Name(id='y', ctx=ast.Load())],
+            args=[Name(id='y', ctx=Load())],
             keywords=[]
         )
     ),
-    ast.Assign(
-        targets=[ast.Name(id='y', ctx=ast.Store())],
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Attribute(
-                    value=ast.Attribute(
-                        value=ast.Name(id='torch', ctx=ast.Load()),
+
+    Assign(
+        targets=[Name(id='y', ctx=Store())],
+        value=Call(
+            func=Attribute(
+                value=Attribute(
+                    value=Attribute(
+                        value=Name(id='torch', ctx=Load()),
                         attr='nn',
-                        ctx=ast.Load()
+                        ctx=Load()
                     ),
                     attr='functional',
-                    ctx=ast.Load()
+                    ctx=Load()
                 ),
                 attr='softmax',
-                ctx=ast.Load()
+                ctx=Load()
             ),
-            args=[ast.Name(id='y', ctx=ast.Load())],
-            keywords=[
-                ast.keyword(
-                    arg='dim',
-                    value=ast.Constant(value=1)
-                )
-            ]
+            args=[Name(id='y', ctx=Load())],
+            keywords=[keyword(arg='dim', value=Constant(value=1))]
         )
     ),
-    ast.Assign(
-        targets=[ast.Name(id='entropy', ctx=ast.Store())],
-        value=ast.UnaryOp(
-            op=ast.USub(),
-            operand=ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id='torch', ctx=ast.Load()),
+
+    Assign(
+        targets=[Name(id='entropy', ctx=Store())],
+        value=UnaryOp(
+            op=USub(),
+            operand=Call(
+                func=Attribute(
+                    value=Name(id='torch', ctx=Load()),
                     attr='sum',
-                    ctx=ast.Load()
+                    ctx=Load()
                 ),
                 args=[
-                    ast.BinOp(
-                        left=ast.Name(id='y', ctx=ast.Load()),
-                        op=ast.Mult(),
-                        right=ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Name(id='torch', ctx=ast.Load()),
+                    BinOp(
+                        left=Name(id='y', ctx=Load()),
+                        op=Mult(),
+                        right=Call(
+                            func=Attribute(
+                                value=Name(id='torch', ctx=Load()),
                                 attr='log2',
-                                ctx=ast.Load()
+                                ctx=Load()
                             ),
                             args=[
-                                ast.BinOp(
-                                    left=ast.Name(id='y', ctx=ast.Load()),
-                                    op=ast.Add(),
-                                    right=ast.Constant(value=1e-20)
+                                BinOp(
+                                    left=Name(id='y', ctx=Load()),
+                                    op=Add(),
+                                    right=Constant(value=1e-20)
                                 )
                             ],
                             keywords=[]
                         )
                     )
                 ],
-                keywords=[
-                    ast.keyword(
-                        arg='dim',
-                        value=ast.Constant(value=1)
-                    )
-                ]
+                keywords=[keyword(arg='dim', value=Constant(value=1))]
             )
         )
     ),
-    ast.If(
-        test=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id='torch', ctx=ast.Load()),
+
+    If(
+        test=Call(
+            func=Attribute(
+                value=Name(id='torch', ctx=Load()),
                 attr='all',
-                ctx=ast.Load()
+                ctx=Load()
             ),
             args=[
-                ast.Compare(
-                    left=ast.Name(id='entropy', ctx=ast.Load()),
-                    ops=[ast.Lt()],
-                    comparators=[ast.Constant(value=0.5)]
+                Compare(
+                    left=Name(id='entropy', ctx=Load()),
+                    ops=[Lt()],
+                    comparators=[Constant(value=300)]
                 )
             ],
             keywords=[]
         ),
         body=[
-            ast.Return(
-                value=ast.Name(id='y', ctx=ast.Load())
+            Return(
+                value=Tuple(
+                    elts=[
+                        Constant(value=1),
+                        Name(id='y', ctx=Load())
+                    ],
+                    ctx=Load()
+                )
             )
         ],
         orelse=[]
-    )
+    ),
 ]
 
 # TODO: Check no exit already exists
@@ -169,7 +174,7 @@ ast_code = [
 class AddExitTransformer(ast.NodeTransformer):
     def visit_Assign(self, node):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "layer1":
-            return [node] + ast_code
+            return [node] + exitAst
         return node
 
 getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
