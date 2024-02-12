@@ -150,7 +150,7 @@ exitAst = [
                 Compare(
                     left=Name(id='entropy', ctx=Load()),
                     ops=[Lt()],
-                    comparators=[Constant(value=300)]
+                    comparators=[Constant(value=300000000000)]
                 )
             ],
             keywords=[]
