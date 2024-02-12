@@ -142,7 +142,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             
         # Update learning rate
         lr_scheduler.step()
-        exitTracker.transformFunction()
+        if (e == epoch - 1):
+            exitTracker.transformFunction()
 
     model.eval()
     with torch.no_grad():
