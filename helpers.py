@@ -157,11 +157,32 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
 
+def getAccuracy(model, testLoader):
+    device = getDevice()
+    model.eval()
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for i, l in testLoader():
+            i = i.to(device)
+            l = l.to(device)
+            exitNumber, outputs = model(i)
+            _, predicted = torch.max(outputs.data, 1)
+            total += l.size(0)
+            correct += (predicted == l).sum().item()
+
+        return correct / total
+
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     trainModel(model, trainLoader, validLoader, testLoader)
+
+    # Model now only contains full branch, get total accuracy
+    accuracy = getAccuracy(model, testLoader)
+
     for param in model.parameters():
         param.requires_grad = False
-    exitTracker = generation.ExitTracker(model)
+
+    exitTracker = generation.ExitTracker(model, accuracy)
     exitTracker.transformFunction()
 
 def generateJsonResults(model, modelName, testLoader):
@@ -186,7 +207,7 @@ def generateJsonResults(model, modelName, testLoader):
                     "entropy": e,
                     "correct": c,
                     "time_taken": end - start,
-                    "exit_number": exitNumber.item()  # Assuming exitNumber is a scalar
+                    "exit_number": exitNumber.item()
                 }
                 results.append(result)
     
@@ -194,16 +215,10 @@ def generateJsonResults(model, modelName, testLoader):
         json.dump(results, file)
 
 def createModelsFolder(name):
-    # Get the current directory of the script
     script_directory = os.path.dirname(os.path.realpath(__file__))
-
-    # Define the folder name
     folder_name = name
-
-    # Create the folder path
     folder_path = os.path.join(script_directory, folder_name)
 
-    # Create the folder if it doesn't exist
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
         print(f"Folder '{folder_path}' created.")
