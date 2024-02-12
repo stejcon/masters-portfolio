@@ -93,6 +93,8 @@ def graphFromJson(filePath):
     ax7.set_title("Dataset Progress vs Entropy")
     ax7.set_ylabel("Progress (%)")
 
+    print(f"Index where cumulative percent first drops below 50: {np.where(cumulativePercent < 50)[0][0]}")
+
     plt.xlabel("Entropy")
     plt.show()
 
