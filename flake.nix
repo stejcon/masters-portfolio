@@ -19,7 +19,7 @@
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
       default = pkgs.mkShell {
-        packages = [pyEnv pkgs.typst];
+        packages = [pyEnv pkgs.typst pkgs.jq];
         QT_PLUGIN_PATH = with pkgs.qt5; "${qtbase}/${qtbase.qtPluginPrefix}";
       };
     };
