@@ -172,28 +172,28 @@ class AddExitTransformer(ast.NodeTransformer):
             return [node] + ast_code
         return node
 
-getAst = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
-getAstDump = lambda x: ast.dump(getAst(x), indent=4)
+getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
+getAstDump = lambda x: ast.dump(x, indent=4)
 
 class ExitTracker:
     def __init__(self, model):
         self.first_transform_complete = False
         self.model = model
-        self.original_forward_ast = getAst(self.model.forward)
-        self.current_forward_ast = getAst(self.model.forward)
+        self.original_ast = getAstFromSource(self.model.forward)
+        self.prev_ast = getAstFromSource(self.model.forward)
+        self.current_ast = getAstFromSource(self.model.forward)
 
     def transformFunction(self):
         exitTransformer = AddExitTransformer()
-        if not self.first_transform_complete:
-            self.current_forward_ast = exitTransformer.visit(self.original_forward_ast)
-            self.first_transform_complete = True
-        else:
-            self.current_forward_ast = exitTransformer.visit(self.current_forward_ast)
-        ast.fix_missing_locations(self.current_forward_ast)
-        code_object = compile(self.current_forward_ast, '', 'exec')
+        self.current_ast = exitTransformer.visit(self.current_ast if self.first_transform_complete else self.original_ast)
+        ast.fix_missing_locations(self.current_ast)
+        code_object = compile(self.current_ast, '', 'exec')
         exec(code_object, globals())
 
         # https://discuss.pytorch.org/t/how-can-i-replace-the-forward-method-of-a-predefined-torchvision-model-with-my-customized-forward-function/54224/11
         # ^^ WHY??
         bound_method = globals()["forward"].__get__(self.model, self.model.__class__)
         setattr(self.model, 'forward', bound_method)
+
+    def dumpCurrentAst(self):
+        return getAstDump(self.current_ast)
