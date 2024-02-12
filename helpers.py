@@ -17,7 +17,7 @@ def getDevice():
     torch.set_default_device(device)
     return device
 
-def Cifar10Splits(batchSize=64):
+def Cifar10Splits(batchSize=1):
     normalize = transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
     transform = transforms.Compose([transforms.Resize((224,224)), transforms.ToTensor(), normalize])
 
@@ -142,7 +142,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             
         # Update learning rate
         lr_scheduler.step()
-
         exitTracker.transformFunction()
 
     model.eval()
