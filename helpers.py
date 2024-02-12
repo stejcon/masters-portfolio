@@ -106,7 +106,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
-    exitTracker = generation.ExitTracker(model)
 
     for e in range(epoch):
         start = time.time()
