@@ -122,19 +122,18 @@ class BranchedResNet(nn.Module):
         x = self.maxpool(x)
         x = self.layer0(x)
         x = self.layer1(x)
+        x = self.layer2(x)
 
         y = self.avgpool(x)
         y = y.view(x.size(0), -1)
-        y = nn.Linear(61952, self.num_classes)(y)
+        y = nn.Linear(y.size(1), self.num_classes)(y)
         y = torch.nn.functional.softmax(y, dim=1)
         entropy = -torch.sum(y * torch.log2(y + 1e-20), dim=1)
-
         if(torch.all(entropy < 0.5)):
-            return 0, y
+            return 1, y
 
-        x = self.layer2(x)
         x = self.layer3(x)
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
-        return 1, x
+        return 0, x
