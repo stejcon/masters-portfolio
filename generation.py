@@ -214,7 +214,8 @@ getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
 getAstDump = lambda x: ast.dump(x, indent=4)
 
 class ExitTracker:
-    def __init__(self, model):
+    def __init__(self, model, accuracy):
+        self.targetAccuracy = accuracy
         self.first_transform_complete = False
         self.model = model
         self.original_ast = getAstFromSource(self.model.forward)
