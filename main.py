@@ -4,6 +4,7 @@ import models
 
 def main():
     device = helpers.getDevice()
+    helpers.createModelsFolder("models")
     trainLoader, validLoader, testLoader = helpers.Cifar10Splits()
 
     fullModel = models.ResNet(models.ResidualBlock, [3, 4, 6, 3]).to(device).train()

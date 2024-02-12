@@ -186,3 +186,20 @@ def generateJsonResults(model, modelName, testLoader):
     
     with open(f"{modelName}-{int(time.time())}.json", "a") as file:
         json.dump(results, file)
+
+def createModelsFolder(name):
+    # Get the current directory of the script
+    script_directory = os.path.dirname(os.path.realpath(__file__))
+
+    # Define the folder name
+    folder_name = name
+
+    # Create the folder path
+    folder_path = os.path.join(script_directory, folder_name)
+
+    # Create the folder if it doesn't exist
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Folder '{folder_path}' created.")
+    else:
+        print(f"Folder '{folder_path}' already exists.")
