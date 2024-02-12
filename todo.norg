@@ -1,8 +1,8 @@
-- ( ) Calculate dimensions
-- ( ) Change training function
--- ( ) Train main model
--- ( ) Freeze all parameters in main model
--- ( ) Add a branch
+- (x) Calculate dimensions
+- (-) Change training function
+-- (x) Train main model
+-- (x) Freeze all parameters in main model
+-- (x) Add a branch
 -- ( ) Train branch
 -- ( ) See if it is worthwhile keeping
 -- ( ) Remove or keep
@@ -12,3 +12,5 @@
 - ( ) Function to get branch dataset % if accuracy is equal to full model
 - ( ) Do a test train of the branch model, and the manipulated full model
 - ( ) Store the branch number in json file to analyse
+- ( ) Serialise full forward function to json
+-- ( ) Need to keep track of where an Exit is and where a normal node is
