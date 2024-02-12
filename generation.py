@@ -170,11 +170,6 @@ exitAst = [
     ),
 ]
 
-# TODO: Check no exit already exists
-# TODO: Make this go in after a specified layer, not after "layer1"
-# TODO: Make ast_code be a parameter, not a random global
-# TODO: Create ast_code from a function where entropy and the dimensions are passed in or calculated
-# TODO: Create an EditEntropyTransformer to update the entropy for a specific exit
 class AddExitTransformer(ast.NodeTransformer):
     def visit_Assign(self, node):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "layer1":
@@ -209,6 +204,10 @@ class EarlyExit():
 
     def getAst(self):
         return self.ast
+
+    def setThreshold(self, threshold):
+        self.threshold = threshold
+        self.updateThreshold()
 
 getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
 getAstDump = lambda x: ast.dump(x, indent=4)
