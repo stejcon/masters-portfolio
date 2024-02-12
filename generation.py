@@ -225,6 +225,9 @@ class ExitTracker:
         exitTransformer = AddExitTransformer()
         self.current_ast = exitTransformer.visit(self.current_ast if self.first_transform_complete else self.original_ast)
         ast.fix_missing_locations(self.current_ast)
+        self.recompileForward()
+
+    def recompileForward(self):
         code_object = compile(self.current_ast, '', 'exec')
         exec(code_object, globals())
 
