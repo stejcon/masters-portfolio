@@ -193,6 +193,7 @@ def generateJsonResults(model, modelName, testLoader):
         for _, (images, labels) in enumerate(testLoader):
             images = images.to(device)
             labels = labels.to(device)
+
             start = time.time()
             exitNumber, outputs = model(images)
             end = time.time()
@@ -200,6 +201,7 @@ def generateJsonResults(model, modelName, testLoader):
             y_hat = torch.nn.functional.softmax(outputs, dim=1)
             entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)            
             _, predicted = torch.max(outputs.data, 1)
+
             correct = predicted == labels
             
             for e, c in zip(entropy, correct):
