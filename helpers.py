@@ -159,6 +159,69 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
 
+def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
+    model.train()
+    device = getDevice()
+    
+    epoch = 5
+    learning_rate = 0.01
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
+    exitTracker = generation.ExitTracker(model)
+
+    for e in range(epoch):
+        start = time.time()
+        for i, (images, labels) in enumerate(trainLoader):
+            print(f"Epoch {e}: Inference {i}")
+            # Move tensors to the configured device
+            images = images.to(device)
+            labels = labels.to(device)
+            exitNumber, outputs = model(images)
+            
+            loss = criterion(outputs, labels)
+            
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        print(f"Epoch: {e} took {time.time() - start}")
+                
+        # Validation
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for images, labels in validLoader:
+                images = images.to(device)
+                labels = labels.to(device)
+                exitNumber, outputs = model(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+        
+            print('Accuracy of the network on the {} validation images: {} %'.format(len(validLoader), 100 * correct / total)) 
+            
+        # Update learning rate
+        lr_scheduler.step()
+        if (e == epoch - 1):
+            exitTracker.transformFunction()
+
+    model.eval()
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in testLoader:
+            images = images.to(device)
+            labels = labels.to(device)
+            exitNumber, outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
+
 def generateJsonResults(model, modelName, testLoader):
     device = getDevice()
 
