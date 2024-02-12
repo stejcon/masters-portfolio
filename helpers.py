@@ -96,12 +96,6 @@ def graphFromJson(filePath):
     plt.xlabel("Entropy")
     plt.show()
 
-class CustomTypeError(Exception):
-    def __init__(self, expected_type, received_object):
-        self.expected_type = expected_type
-        self.received_object = received_object
-        super().__init__(f"Expected type {self.expected_type.__name__}, received {type(self.received_object).__name__}")
-
 def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
