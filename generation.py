@@ -51,7 +51,11 @@ exitAst = [
         value=Call(
             func=Call(
                 func=Attribute(
-                    value=Name(id='nn', ctx=Load()),
+                    value=Attribute(
+                        value=Name(id='torch', ctx=Load()),
+                        attr='nn',
+                        ctx=Load()
+                    ),
                     attr='Linear',
                     ctx=Load()
                 ),
