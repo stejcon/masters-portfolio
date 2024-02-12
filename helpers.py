@@ -160,22 +160,30 @@ def trainModel(model, trainLoader, validLoader, testLoader):
         print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
 
 def generateJsonResults(model, modelName, testLoader):
-    entropyAccuracyTime = {}
     device = getDevice()
+
+    results = []
     with torch.no_grad():
-        for i, (images, labels) in enumerate(testLoader):
+        for _, (images, labels) in enumerate(testLoader):
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images)
+            start = time.time()
+            exitNumber, outputs = model(images)
+            end = time.time()
             
             y_hat = torch.nn.functional.softmax(outputs, dim=1)
-            entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)
-            
+            entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)            
             _, predicted = torch.max(outputs.data, 1)
+            correct = predicted == labels
             
-            for a, b in zip(entropy, predicted == labels):
-                entropyAccuracyTime[i] = [a.item(), b.item()]
-
-        json_data = json.dumps(entropyAccuracyTime)
-        with open(f"{modelName}-{int(time.time())}.json", "a") as file:
-            file.write(json_data + "\n")
+            for e, c in zip(entropy, correct):
+                result = {
+                    "entropy": e,
+                    "correct": c,
+                    "time_taken": end - start,
+                    "exit_number": exitNumber.item()  # Assuming exitNumber is a scalar
+                }
+                results.append(result)
+    
+    with open(f"{modelName}-{int(time.time())}.json", "a") as file:
+        json.dump(results, file)
