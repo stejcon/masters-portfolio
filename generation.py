@@ -181,6 +181,35 @@ class AddExitTransformer(ast.NodeTransformer):
             return [node] + exitAst
         return node
 
+class EditExitThreshold(ast.NodeTransformer):
+    def __init__(self, threshold):
+        self.threshold = threshold
+
+    def visit_If(self, node):
+        if isinstance(node, If) and isinstance(node.test, Call) and isinstance(node.test.args[0], Compare) and isinstance(node.test.args[0].comparators[0], Constant):
+            node.test.args[0].comparators[0] = Constant(value=self.threshold)
+            return node
+        return node
+
+class EarlyExit():
+    # AST here is a list of the AST nodes specific to the exit, not the entire forward function.
+    # Threshold is the actual threshold to keep the same accuracy as the full model
+    # ID is a number to keep track of which exit this is TODO: This needs to be updated if an exit is added before this one
+    def __init__(self, ast, threshold, id):
+        self.ast = ast
+        self.threshold = threshold
+        self.id = id
+
+    def updateThreshold(self, threshold=None):
+        if threshold is None:
+            threshold = self.threshold
+
+        exitEditor = EditExitThreshold(threshold)
+        exitEditor.visit(self.ast)
+
+    def getAst(self):
+        return self.ast
+
 getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
 getAstDump = lambda x: ast.dump(x, indent=4)
 
