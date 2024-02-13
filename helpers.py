@@ -158,21 +158,36 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
 
-def getAccuracy(model, testLoader):
-    device = getDevice()
-    model.eval()
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for i, l in testLoader():
-            i = i.to(device)
-            l = l.to(device)
-            exitNumber, outputs = model(i)
-            _, predicted = torch.max(outputs.data, 1)
-            total += l.size(0)
-            correct += (predicted == l).sum().item()
+# 1. Generate temporary results json
+# 2. Read in the data from the results json
+# 3. Use the same bin technique from the graph section
+# 4. Find the bin for the target accuracy (unsure whether this should be the bin before, after or containing the accuracy)
+def getAccDataset(model, testLoader):
+    fileName = f"temp-results"
+    generateJsonResults(model, fileName, testLoader)
 
-        return correct / total
+    with open(fileName, 'r') as file:
+        results = json.load(file)
+
+    accuratePredictions = [value['entropy'] for value in results if value['correct'] is True]
+    totalPredictions = [value['entropy'] for value in results]
+
+    accurateCount, _ = np.histogram(accuratePredictions, bins=200)
+    totalCount, totalBins = np.histogram(totalPredictions, bins=200)
+
+    cumulativeAccuracy = 100 * np.cumsum(accurateCount) / np.cumsum(totalCount)
+    cumulativeDataset = 100 * np.cumsum(accurateCount) / np.sum(totalCount)
+
+    return cumulativeAccuracy, cumulativeDataset, totalBins
+
+def getEntropyForAccuracy(model, testLoader, target):
+    acc, _, bins = getAccDataset(model, testLoader)
+    index = np.where(acc < target)
+    print(f"Index is {index}")
+    return bins[index]
+
+def getAccuracy(model, testLoader):
+    return getAccDataset(model, testLoader)[1][-1]
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     trainModel(model, trainLoader, validLoader, testLoader)
@@ -198,6 +213,8 @@ def generateJsonResults(model, modelName, testLoader):
             start = time.time()
             exitNumber, outputs = model(images)
             end = time.time()
+
+            print(f"Exited from {exitNumber}, with output {outputs}")
             
             y_hat = torch.nn.functional.softmax(outputs, dim=1)
             entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)            
@@ -207,10 +224,10 @@ def generateJsonResults(model, modelName, testLoader):
             
             for e, c in zip(entropy, correct):
                 result = {
-                    "entropy": e,
-                    "correct": c,
+                    "entropy": e.item(),
+                    "correct": c.item(),
                     "time_taken": end - start,
-                    "exit_number": exitNumber.item()
+                    "exit_number": exitNumber
                 }
                 results.append(result)
     
