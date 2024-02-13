@@ -197,9 +197,6 @@ class EditReturnId(ast.NodeTransformer):
         return node
 
 class EarlyExit():
-    # AST here is a list of the AST nodes specific to the exit, not the entire forward function.
-    # Threshold is the actual threshold to keep the same accuracy as the full model
-    # ID is a number to keep track of which exit this is TODO: This needs to be updated if an exit is added before this one
     def __init__(self, ast, threshold, id):
         self.ast = ast
         self.threshold = threshold
