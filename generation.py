@@ -186,6 +186,16 @@ class EditExitThreshold(ast.NodeTransformer):
             return node
         return node
 
+class EditReturnId(ast.NodeTransformer):
+    def __init__(self, id):
+        self.id = id
+
+    def visit_If(self, node):
+        if isinstance(node, If) and isinstance(node.body[0], Return) and isinstance(node.body[0].value, Tuple) and isinstance(node.body[0].value.elts[0], Constant):
+            node.body[0].value.elts[0] = Constant(value=self.id)
+            return node
+        return node
+
 class EarlyExit():
     # AST here is a list of the AST nodes specific to the exit, not the entire forward function.
     # Threshold is the actual threshold to keep the same accuracy as the full model
@@ -202,12 +212,20 @@ class EarlyExit():
         exitEditor = EditExitThreshold(threshold)
         exitEditor.visit(self.ast)
 
+    def updateReturn(self):
+        returnEditor = EditReturnId(self.id)
+        returnEditor.visit(self.ast)
+
     def getAst(self):
         return self.ast
 
     def setThreshold(self, threshold):
         self.threshold = threshold
         self.updateThreshold()
+
+    def setId(self, id):
+        self.id = id
+        self.updateReturn()
 
 getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
 getAstDump = lambda x: ast.dump(x, indent=4)
