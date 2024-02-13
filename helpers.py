@@ -25,7 +25,7 @@ def Cifar10Splits(batchSize=1):
     testDataset = datasets.CIFAR10(train=False, root='./data', transform=transform, download=True)
 
     # Split train dataset to have 10% validation dataset
-    valid_size=0.1
+    valid_size=0.15
     num_train = len(trainDataset)
     indices = list(range(num_train))
     np.random.shuffle(indices)
@@ -102,7 +102,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
     
-    epoch = 5
+    epoch = 10
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
@@ -156,7 +156,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        print('Accuracy of the network on the {} test images: {} %'.format(10000, 100 * correct / total))
+        print('Accuracy of the network on the {} test images: {} %'.format(len(testLoader), 100 * correct / total))
 
 # 1. Generate temporary results json
 # 2. Read in the data from the results json
