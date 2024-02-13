@@ -46,8 +46,8 @@ def graphFromJson(filePath):
     with open(filePath, 'r') as file:
         results = json.load(file)
 
-    accuratePredictions = [value[0] for value in results.values() if value[1] is True]
-    inaccuratePredictions = [value[0] for value in results.values() if value[1] is False]
+    accuratePredictions = [value['entropy'] for value in results if value['correct'] is True]
+    inaccuratePredictions = [value['entropy'] for value in results if value['correct'] is False]
 
     allPredictions = np.sort(np.concatenate([accuratePredictions, inaccuratePredictions]))
     bins = np.histogram_bin_edges(allPredictions, bins=200)
