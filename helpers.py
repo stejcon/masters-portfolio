@@ -94,6 +94,7 @@ def graphFromJson(filePath):
     ax7.set_ylabel("Progress (%)")
 
     print(f"Index where cumulative percent first drops below 50: {np.where(cumulativePercent < 50)[0][0]}")
+    print(f"Entropy for this index is: {bins[np.where(cumulativePercent < 50)[0][0]]}")
 
     plt.xlabel("Entropy")
     plt.show()
@@ -162,11 +163,10 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 # 2. Read in the data from the results json
 # 3. Use the same bin technique from the graph section
 # 4. Find the bin for the target accuracy (unsure whether this should be the bin before, after or containing the accuracy)
-def getAccDataset(model, testLoader):
-    fileName = f"temp-results"
-    generateJsonResults(model, fileName, testLoader)
+def getAccDataset(model, testLoader, fileName):
+    fileFileName = generateJsonResults(model, fileName, testLoader)
 
-    with open(fileName, 'r') as file:
+    with open(fileFileName, 'r') as file:
         results = json.load(file)
 
     accuratePredictions = [value['entropy'] for value in results if value['correct'] is True]
@@ -181,13 +181,12 @@ def getAccDataset(model, testLoader):
     return cumulativeAccuracy, cumulativeDataset, totalBins
 
 def getEntropyForAccuracy(model, testLoader, target):
-    acc, _, bins = getAccDataset(model, testLoader)
+    acc, _, bins = getAccDataset(model, testLoader, "temp-results")
     index = np.where(acc < target)
-    print(f"Index is {index}")
     return bins[index]
 
 def getAccuracy(model, testLoader):
-    return getAccDataset(model, testLoader)[1][-1]
+    return getAccDataset(model, testLoader, "temp-results")[1][-1]
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     trainModel(model, trainLoader, validLoader, testLoader)
@@ -214,8 +213,6 @@ def generateJsonResults(model, modelName, testLoader):
             exitNumber, outputs = model(images)
             end = time.time()
 
-            print(f"Exited from {exitNumber}, with output {outputs}")
-            
             y_hat = torch.nn.functional.softmax(outputs, dim=1)
             entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)            
             _, predicted = torch.max(outputs.data, 1)
@@ -230,9 +227,13 @@ def generateJsonResults(model, modelName, testLoader):
                     "exit_number": exitNumber
                 }
                 results.append(result)
+
+    fileName = f"{modelName}-{int(time.time())}.json"
     
-    with open(f"{modelName}-{int(time.time())}.json", "a") as file:
+    with open(fileName, "a") as file:
         json.dump(results, file)
+
+    return fileName
 
 def createModelsFolder(name):
     script_directory = os.path.dirname(os.path.realpath(__file__))
