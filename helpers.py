@@ -24,7 +24,7 @@ def Cifar10Splits(batchSize=64):
     train_transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(10),
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomResizedCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
     ])
