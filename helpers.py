@@ -21,14 +21,24 @@ def getDevice():
     return device
 
 def Cifar10Splits(batchSize=64):
-    normalize = transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
-    transform = transforms.Compose([transforms.Resize((224,224)), transforms.ToTensor(), normalize])
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(10),
+        transforms.RandomCrop(32, padding=4),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
+    ])
+    test_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
+    ])
 
-    trainDataset = datasets.CIFAR10(train=True, root='./data', transform=transform, download=True)
-    testDataset = datasets.CIFAR10(train=False, root='./data', transform=transform, download=True)
+    trainDataset = datasets.CIFAR10(train=True, root='./data', transform=train_transform, download=True)
+    testDataset = datasets.CIFAR10(train=False, root='./data', transform=test_transform, download=True)
 
     # Split train dataset to have 10% validation dataset
-    valid_size=0.15
+    valid_size=0.10
     num_train = len(trainDataset)
     indices = list(range(num_train))
     np.random.shuffle(indices)
@@ -77,8 +87,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.9)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.8)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.92)
 
     for e in range(epoch):
         start = time.time()
