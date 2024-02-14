@@ -9,6 +9,9 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 import generation
+import tempfile
+import inspect
+import importlib
 
 # gpuString lets you define which GPU to use if there are multiple
 # Project presumes only one GPU is used
@@ -211,3 +214,22 @@ def createModelsFolder(name):
         print(f"Folder '{folder_path}' created.")
     else:
         print(f"Folder '{folder_path}' already exists.")
+
+class ReloadableModel():
+    def __init__(self, model_class, *args):
+        for arg in args:
+            print(arg)
+        self.model = model_class(*args)
+        self.model_class = model_class
+        self.model_args = args
+
+    def reload(self):
+        with tempfile.TemporaryFile("weights") as file:
+            torch.save(self.model[0].state_dict(), file)
+            importlib.reload(inspect.getmodule(self.model))
+            self.model = self.model_class(*(self.model_args)).load_state_dict(torch.load(file))
+
+        return self.model
+
+    def getModel(self):
+        return self.model
