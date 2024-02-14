@@ -46,55 +46,22 @@ def graphFromJson(filePath):
     with open(filePath, 'r') as file:
         results = json.load(file)
 
+    _, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16,24))
+
     accuratePredictions = [value['entropy'] for value in results if value['correct'] is True]
-    inaccuratePredictions = [value['entropy'] for value in results if value['correct'] is False]
+    totalPredictions = [value['entropy'] for value in results]
 
-    allPredictions = np.sort(np.concatenate([accuratePredictions, inaccuratePredictions]))
-    bins = np.histogram_bin_edges(allPredictions, bins=200)
+    accurateCount, _ = np.histogram(accuratePredictions, bins=200)
+    totalCount, totalBins = np.histogram(totalPredictions, bins=200)
 
-    _, (ax1, ax2, ax3, ax4, ax5, ax6, ax7) = plt.subplots(7, 1, sharex=True, figsize=(16,24))
+    cumulativePercent = 100 * np.cumsum(accurateCount) / np.cumsum(totalCount)
+    ax1.plot(totalBins[:-1], cumulativePercent)
+    ax1.set_title("Accuracy vs Entropy")
+    ax1.set_ylabel("Cumulative Correct (%)")
 
-    accurateBinValues, _, _ = ax1.hist(accuratePredictions, bins=bins, label="Correct")
-    ax1.legend()
-    ax1.set_title("Histogram of Correct Predictions vs Entropy")
-    ax1.set_ylabel("Number of Correct Predictions")
-
-    inaccurateBinValues, _, _ = ax2.hist(inaccuratePredictions, bins=bins, label="Incorrect")
-    ax2.legend()
-    ax2.set_title("Histogram of Incorrect Predictions vs Entropy")
-    ax2.set_ylabel("Number of Incorrect Predictions")
-
-    # Fix for divide by 0
-    # Should this be done differently
-    inaccurateBinValues = [x if x != 0 else 1 for x in inaccurateBinValues]
-    allBinValues = accurateBinValues + inaccurateBinValues
-
-    ratioAccurateInaccurate = accurateBinValues / inaccurateBinValues
-    ax3.plot(bins[:-1], ratioAccurateInaccurate)
-    ax3.set_title("Point Ratio of Correct to Incorrect")
-    ax3.set_ylabel("Correct:Incorrect")
-
-    cumulativeRatio = np.cumsum(accurateBinValues) / np.cumsum(inaccurateBinValues)
-    ax4.plot(bins[:-1], cumulativeRatio)
-    ax4.set_title("Cumulative Ratio of Correct to Incorrect")
-    ax4.set_ylabel("Cumulative Correct:Incorrect")
-
-    percentAccurateInaccurate = 100 * accurateBinValues / allBinValues
-    ax5.plot(bins[:-1], percentAccurateInaccurate)
-    ax5.set_title("Point Percent of Correct to Total")
-    ax5.set_ylabel("Correct (%)")
-
-    cumulativePercent = 100 * np.cumsum(accurateBinValues) / np.cumsum(allBinValues)
-    ax6.plot(bins[:-1], cumulativePercent)
-    ax6.set_title("Accuracy vs Entropy")
-    ax6.set_ylabel("Cumulative Correct (%)")
-
-    ax7.plot(bins[:-1], 100*np.cumsum(allBinValues)/np.sum(allBinValues))
-    ax7.set_title("Dataset Progress vs Entropy")
-    ax7.set_ylabel("Progress (%)")
-
-    print(f"Index where cumulative percent first drops below 50: {np.where(cumulativePercent < 50)[0][0]}")
-    print(f"Entropy for this index is: {bins[np.where(cumulativePercent < 50)[0][0]]}")
+    ax2.plot(totalBins[:-1], 100*np.cumsum(totalCount)/np.sum(totalCount))
+    ax2.set_title("Dataset Progress vs Entropy")
+    ax2.set_ylabel("Progress (%)")
 
     plt.xlabel("Entropy")
     plt.show()
@@ -182,11 +149,10 @@ def getAccDataset(model, testLoader, fileName):
 
 def getEntropyForAccuracy(model, testLoader, target):
     acc, _, bins = getAccDataset(model, testLoader, "temp-results")
-    index = np.where(acc < target)
-    return bins[index]
+    return bins[np.where(acc < target)[0][0]]
 
 def getAccuracy(model, testLoader):
-    return getAccDataset(model, testLoader, "temp-results")[1][-1]
+    return getAccDataset(model, testLoader, "temp-results")[0][-1]
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     trainModel(model, trainLoader, validLoader, testLoader)
