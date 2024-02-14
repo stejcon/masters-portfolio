@@ -87,8 +87,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.8)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.92)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.95)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.98)
 
     for e in range(epoch):
         start = time.time()
