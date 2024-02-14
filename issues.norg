@@ -1,0 +1,18 @@
+- automatically get dimensions
+- batch size in an "unsolvable" problem
+- can branches be trained in parallel?
+- saving the forward function
+- keeping track of exits
+- might memory be reset?
+
+- ast.unparse()
+- importlib.reload()
+- keeping state between reloads
+- memory definitely not reset as it is saved first
+
+- recompiling forward function to binary
+- replacing at runtime
+- better as no need to temporarily save state
+- worse in every other manner
+
+- training needs high batch size, runtime needs batch size of 1
