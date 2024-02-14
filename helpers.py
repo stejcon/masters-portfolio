@@ -8,10 +8,13 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.tensorboard.writer import SummaryWriter
 import generation
 import tempfile
 import inspect
 import importlib
+
+writer = SummaryWriter()
 
 # gpuString lets you define which GPU to use if there are multiple
 # Project presumes only one GPU is used
@@ -82,6 +85,7 @@ def graphFromJson(filePath):
 def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
+    writer.add_graph(model, torch.rand([1,3,224,224]))
     
     epoch = 20
     learning_rate = 0.01
@@ -92,6 +96,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
     for e in range(epoch):
         start = time.time()
+        model.train()
         for i, (images, labels) in enumerate(trainLoader):
             print(f"Epoch {e}: Inference {i}")
             # Move tensors to the configured device
@@ -100,6 +105,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             exitNumber, outputs = model(images)
             
             loss = criterion(outputs, labels)
+            writer.add_scalar('loss', loss, e)
             
             # Backward and optimize
             optimizer.zero_grad()
@@ -109,6 +115,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
         print(f"Epoch: {e} took {time.time() - start}")
                 
         # Validation
+        model.eval()
         with torch.no_grad():
             correct = 0
             total = 0
@@ -120,6 +127,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         
+            writer.add_scalar('accuracy', correct / total, e)
             print('Accuracy of the network on the {} validation images: {} %'.format(len(validLoader), 100 * correct / total)) 
             
         # Update learning rate

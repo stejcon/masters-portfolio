@@ -14,7 +14,7 @@
       config.cudaSupport = true;
     };
     matplotlib = pkgs.python3Packages.matplotlib.override {enableQt = true;};
-    pyEnv = pkgs.python3.withPackages (ps: with ps; [torchvision-bin onnx numpy pillow jupyter matplotlib ipython scipy pyqt5]);
+    pyEnv = pkgs.python3.withPackages (ps: with ps; [torchvision-bin onnx numpy pillow jupyter matplotlib ipython scipy pyqt5 tensorboard]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
