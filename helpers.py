@@ -26,8 +26,9 @@ def getDevice():
 def Cifar10Splits(batchSize=64):
     train_transform = transforms.Compose([
         transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
         transforms.RandomRotation(10),
-        transforms.RandomResizedCrop(224),
+        transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
     ])
@@ -86,7 +87,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
     
-    epoch = 20
+    epoch = 100
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
