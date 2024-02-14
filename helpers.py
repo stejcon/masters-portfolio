@@ -103,7 +103,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
     
-    epoch = 10
+    epoch = 20
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
