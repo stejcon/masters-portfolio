@@ -105,7 +105,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             exitNumber, outputs = model(images)
             
             loss = criterion(outputs, labels)
-            writer.add_scalar('loss/train', loss.item(), e * len(trainLoader) + i)
+            writer.add_scalar('loss/batch_loss', loss.item(), e * len(trainLoader) + i)
             running_loss += loss.item()
             
             # Backward and optimize
@@ -113,9 +113,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             loss.backward()
             optimizer.step()
 
-        epoch_loss = running_loss / len(trainLoader)
-        print(f"Epoch: {e} took {time.time() - start}, Loss: {epoch_loss}")
-        writer.add_scalar('loss/train_epoch', epoch_loss, e)
+        train_loss = running_loss / len(trainLoader)
+        print(f"Epoch {e} took {time.time() - start}, Loss: {train_loss}")
                 
         # Validation
         model.eval()
@@ -135,8 +134,9 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             val_accuracy = 100 * correct / total
             val_loss /= len(validLoader)
             writer.add_scalar('accuracy/val', val_accuracy, e)
-            writer.add_scalar('loss/val_epoch', val_loss, e)
-            print('Epoch {}, Validation Loss: {:.4f}, Accuracy: {:.2f}%'.format(e, val_loss, val_accuracy)) 
+            print(f"Epoch {e}, Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.2f}%")
+
+            writer.add_scalars('loss', {'train': train_loss, 'val': val_loss}, e)
             
         # Update learning rate
         lr_scheduler.step()
@@ -155,7 +155,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         test_accuracy = 100 * correct / total
         writer.add_scalar('accuracy/test', test_accuracy)
-        print('Accuracy of the network on the {} test images: {:.2f}%'.format(len(testLoader), test_accuracy))
+        print(f"Accuracy of the network on the {len(testLoader)} test images: {test_accuracy:.2f}%")
 
 # 1. Generate temporary results json
 # 2. Read in the data from the results json
