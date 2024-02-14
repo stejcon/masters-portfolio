@@ -9,6 +9,7 @@
 - importlib.reload()
 - keeping state between reloads
 - memory definitely not reset as it is saved first
+- reloadable model class to wrap a model
 
 - recompiling forward function to binary
 - replacing at runtime
