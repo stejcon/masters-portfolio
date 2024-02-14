@@ -85,18 +85,18 @@ def graphFromJson(filePath):
 def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
-    writer.add_graph(model, torch.rand([1,3,224,224]))
     
     epoch = 20
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.001, momentum = 0.95)
-    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.98)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.001, momentum=0.9)
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
 
     for e in range(epoch):
         start = time.time()
         model.train()
+        running_loss = 0.0
         for i, (images, labels) in enumerate(trainLoader):
             print(f"Epoch {e}: Inference {i}")
             # Move tensors to the configured device
@@ -105,20 +105,24 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             exitNumber, outputs = model(images)
             
             loss = criterion(outputs, labels)
-            writer.add_scalar('loss', loss, e)
+            writer.add_scalar('loss/train', loss.item(), e * len(trainLoader) + i)
+            running_loss += loss.item()
             
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        print(f"Epoch: {e} took {time.time() - start}")
+        epoch_loss = running_loss / len(trainLoader)
+        print(f"Epoch: {e} took {time.time() - start}, Loss: {epoch_loss}")
+        writer.add_scalar('loss/train_epoch', epoch_loss, e)
                 
         # Validation
         model.eval()
         with torch.no_grad():
             correct = 0
             total = 0
+            val_loss = 0.0
             for images, labels in validLoader:
                 images = images.to(device)
                 labels = labels.to(device)
@@ -126,9 +130,13 @@ def trainModel(model, trainLoader, validLoader, testLoader):
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                val_loss += criterion(outputs, labels).item()
         
-            writer.add_scalar('accuracy', correct / total, e)
-            print('Accuracy of the network on the {} validation images: {} %'.format(len(validLoader), 100 * correct / total)) 
+            val_accuracy = 100 * correct / total
+            val_loss /= len(validLoader)
+            writer.add_scalar('accuracy/val', val_accuracy, e)
+            writer.add_scalar('loss/val_epoch', val_loss, e)
+            print('Epoch {}, Validation Loss: {:.4f}, Accuracy: {:.2f}%'.format(e, val_loss, val_accuracy)) 
             
         # Update learning rate
         lr_scheduler.step()
@@ -145,7 +153,9 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        print('Accuracy of the network on the {} test images: {} %'.format(len(testLoader), 100 * correct / total))
+        test_accuracy = 100 * correct / total
+        writer.add_scalar('accuracy/test', test_accuracy)
+        print('Accuracy of the network on the {} test images: {:.2f}%'.format(len(testLoader), test_accuracy))
 
 # 1. Generate temporary results json
 # 2. Read in the data from the results json
