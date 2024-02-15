@@ -3,6 +3,8 @@
 - can branches be trained in parallel?
 - saving the forward function
 - keeping track of exits
+- keeping track requires a list of nodes and EarlyExits, so need to properly set the current_ast FunctionDef body to the list of nodes with the EarlyExit ast nodes extracted
+- this also means I cant use node transformers
 - might memory be reset?
 
 - ast.unparse()

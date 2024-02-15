@@ -1,5 +1,5 @@
 import ast
-from ast import Assign, Name, Store, Call, Attribute, Load, Constant, UnaryOp, USub, keyword, BinOp, Mult, Return, Tuple, Lt, Compare, If, Add
+from ast import Assign, FunctionDef, Name, Store, Call, Attribute, Load, Constant, UnaryOp, USub, keyword, BinOp, Mult, Return, Tuple, Lt, Compare, If, Add, Module
 import inspect
 import textwrap
 import torch # Ignore LSP error "not accessed", needed to compile the ast code
@@ -171,9 +171,12 @@ exitAst = [
 ]
 
 class AddExitTransformer(ast.NodeTransformer):
+    def __init__(self, astlist):
+        self.exitAst = astlist
+
     def visit_Assign(self, node):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "layer1":
-            return [node] + exitAst
+            return [node] + self.exitAst
         return node
 
 class EditExitThreshold(ast.NodeTransformer):
@@ -197,28 +200,45 @@ class EditReturnId(ast.NodeTransformer):
         return node
 
 class EarlyExit():
-    def __init__(self, ast, threshold, id):
-        self.ast = ast
-        self.threshold = threshold
-        self.id = id
+    def __init__(self, node, threshold, id):
+        self.node = node
+        self.setThreshold(threshold)
+        self.setId(id)
+
+    def getAst(self):
+        return self.node
 
     def updateThreshold(self, threshold=None):
         if threshold is None:
             threshold = self.threshold
 
-        exitEditor = EditExitThreshold(threshold)
-        exitEditor.visit(self.ast)
+        def edit_exit_threshold(nodes, threshold):
+            edited_nodes = []
+            for node in nodes:
+                if isinstance(node, ast.If) and isinstance(node.test, ast.Call) and isinstance(node.test.args[0], ast.Compare) and isinstance(node.test.args[0].comparators[0], ast.Constant):
+                    node.test.args[0].comparators[0] = ast.Constant(value=threshold)
+                edited_nodes.append(node)
+            return edited_nodes
 
-    def updateReturn(self):
-        returnEditor = EditReturnId(self.id)
-        returnEditor.visit(self.ast)
-
-    def getAst(self):
-        return self.ast
+        self.node = edit_exit_threshold(self.node, threshold)
 
     def setThreshold(self, threshold):
         self.threshold = threshold
         self.updateThreshold()
+
+    def resetThreshold(self):
+        self.updateThreshold(self.threshold)
+
+    def updateReturn(self):
+        def edit_return_id(nodes, new_id):
+            edited_nodes = []
+            for node in nodes:
+                if isinstance(node, ast.If) and isinstance(node.body[0], ast.Return) and isinstance(node.body[0].value, ast.Tuple) and isinstance(node.body[0].value.elts[0], ast.Constant):
+                    node.body[0].value.elts[0] = ast.Constant(value=new_id)
+                edited_nodes.append(node)
+            return edited_nodes
+
+        self.node = edit_return_id(self.node, self.id)
 
     def setId(self, id):
         self.id = id
@@ -235,15 +255,26 @@ class ExitTracker:
         self.original_ast = getAstFromSource(self.model.forward)
         self.prev_ast = getAstFromSource(self.model.forward)
         self.current_ast = getAstFromSource(self.model.forward)
+        assert(isinstance(self.current_ast.body[0], FunctionDef))
+        self.current_list = [x for x in self.current_ast.body[0].body]
 
     def transformFunction(self):
-        exitTransformer = AddExitTransformer()
         self.prev_ast = self.current_ast
-        self.current_ast = exitTransformer.visit(self.current_ast if self.first_transform_complete else self.original_ast)
+        self.current_list.insert(3, EarlyExit(exitAst, 37, 6))
+
+        b = []
+        for x in self.current_list:
+            if (isinstance(x, EarlyExit)):
+                b.extend(x.node)
+            else:
+                b.append(x)
+
+        assert(isinstance(self.current_ast.body[0], FunctionDef))
+        self.current_ast.body[0].body = b
         ast.fix_missing_locations(self.current_ast)
 
         # TODO: Instead of recompileForward, write the updated module and reload
-        self.recompileForward()
+        # self.recompileForward()
         self.printCurrentAstAsSource()
 
     def printCurrentAstAsSource(self):
@@ -286,7 +317,6 @@ class ExitTracker:
             with open("test-output.py", "w") as file:
                 file.write(modified_code)
 
-        print(f"The currently stored ast shown as source code is:")
         rewrite_method_with_ast(filePath, class_name, method_name, self.current_ast)
 
     def recompileForward(self):
