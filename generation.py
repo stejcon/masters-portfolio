@@ -248,6 +248,7 @@ getAstFromSource = lambda x: ast.parse(textwrap.dedent(inspect.getsource(x)))
 getAstDump = lambda x: ast.dump(x, indent=4)
 
 class ExitTracker:
+    # TODO: Make the model taken in here a ReloadableModel
     def __init__(self, model, accuracy):
         self.targetAccuracy = accuracy
         self.first_transform_complete = False
@@ -257,6 +258,12 @@ class ExitTracker:
         self.current_ast = getAstFromSource(self.model.forward)
         assert(isinstance(self.current_ast.body[0], FunctionDef))
         self.current_list = [x for x in self.current_ast.body[0].body]
+
+    # TODO: Function to test exit and set entropy threshold correctly
+
+    # TODO: Function to label all exit return values correctly
+
+    # TODO: Function to add a new exit and disable other exits
 
     def transformFunction(self):
         self.prev_ast = self.current_ast
@@ -319,6 +326,7 @@ class ExitTracker:
 
         rewrite_method_with_ast(filePath, class_name, method_name, self.current_ast)
 
+    # TODO: Put this as the other ast stuff into a separate appendix, not applicable anymore
     def recompileForward(self):
         code_object = compile(self.current_ast, '', 'exec')
         exec(code_object, globals())
