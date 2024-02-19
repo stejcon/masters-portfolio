@@ -11,7 +11,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.tensorboard.writer import SummaryWriter
 import generation
 import tempfile
-import inspect
+import sys
 import importlib
 
 writer = SummaryWriter()
@@ -219,21 +219,26 @@ def getAccuracy(model, testLoader):
 
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
-    trainModel(model.getModel(), trainLoader, validLoader, testLoader)
+    # trainModel(model.getModel(), trainLoader, validLoader, testLoader)
+    model.getModel().load_state_dict(torch.load("./models/fullModel"))
 
     # Model now only contains full branch, get total accuracy
     accuracy = getAccuracy(model.getModel(), testLoader)
 
-    for param in model.getModel().parameters():
-        param.requires_grad = False
+    for x in model.getModel().parameters():
+        print(f"{x}")
 
     exitTracker = generation.ExitTracker(model, accuracy)
+    exitTracker.transformFunction()
     exitTracker.enableMiddleExit()
+    exitTracker.reloadable_model.reload()
 
-    trainModel(model.reload(), trainLoader, validLoader, testLoader)
+    trainModel(
+        exitTracker.reloadable_model.getModel(), trainLoader, validLoader, testLoader
+    )
     exitTracker.setMiddleExitCorrectly()
 
-    model.getModel().eval()
+    exitTracker.reloadable_model.getModel().eval()
 
 
 def generateJsonResults(model, modelName, testLoader):
@@ -290,16 +295,18 @@ class ReloadableModel:
         self.model.to(getDevice())
         self.model_class = model_class
         self.model_args = args
+        print(type(self.model))
 
     def reload(self):
         with tempfile.TemporaryFile() as file:
             torch.save(self.model.state_dict(), file)
             file.seek(0)
-            importlib.reload(inspect.getmodule(self.model))
+            module_name = self.model_class.__module__
+            importlib.reload(sys.modules[module_name])
+            reloaded_module = sys.modules[module_name]
+            self.model_class = getattr(reloaded_module, self.model_class.__name__)
             self.model = self.model_class(*(self.model_args))
             self.model.load_state_dict(torch.load(file))
-
-        return self.model.to(getDevice())
 
     def getModel(self):
         return self.model
