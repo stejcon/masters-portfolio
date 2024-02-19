@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, downsample=None):
-        super(ResidualBlock, self).__init__()
+        super().__init__()
         self.conv1 = nn.Sequential(
             nn.Conv2d(
                 in_channels, out_channels, kernel_size=3, stride=stride, padding=1
@@ -33,7 +33,7 @@ class ResidualBlock(nn.Module):
 
 class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=10):
-        super(ResNet, self).__init__()
+        super().__init__()
         self.inplanes = 64
         self.conv1 = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
