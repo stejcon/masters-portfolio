@@ -2,6 +2,7 @@ import helpers
 import torch
 import models
 
+
 def main():
     device = helpers.getDevice()
     helpers.createModelsFolder("models")
@@ -19,11 +20,14 @@ def main():
     torch.save(halfModel.state_dict(), "models/halfModel")
     helpers.generateJsonResults(halfModel, "halfModel", testLoader)
 
-    branchedModel = models.BranchedResNet(models.ResidualBlock, [3, 4, 6, 3]).to(device).train()
+    branchedModel = (
+        models.BranchedResNet(models.ResidualBlock, [3, 4, 6, 3]).to(device).train()
+    )
     helpers.trainModel(branchedModel, trainLoader, validLoader, testLoader)
     branchedModel.eval()
     torch.save(branchedModel.state_dict(), "models/branchedModel")
     helpers.generateJsonResults(branchedModel, "branchedModel", testLoader)
+
 
 if __name__ == "__main__":
     main()

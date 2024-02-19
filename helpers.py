@@ -16,33 +16,49 @@ import importlib
 
 writer = SummaryWriter()
 
+
 # gpuString lets you define which GPU to use if there are multiple
 # Project presumes only one GPU is used
 def getDevice():
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_default_device(device)
     return device
 
-def Cifar10Splits(batchSize=64):
-    train_transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.RandomRotation(10),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
-    ])
-    test_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.49139968, 0.48215827, 0.44653124], std=[0.24703233, 0.24348505, 0.26158768])
-    ])
 
-    trainDataset = datasets.CIFAR10(train=True, root='./data', transform=train_transform, download=True)
-    testDataset = datasets.CIFAR10(train=False, root='./data', transform=test_transform, download=True)
+def Cifar10Splits(batchSize=64):
+    train_transform = transforms.Compose(
+        [
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
+            transforms.RandomRotation(10),
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.49139968, 0.48215827, 0.44653124],
+                std=[0.24703233, 0.24348505, 0.26158768],
+            ),
+        ]
+    )
+    test_transform = transforms.Compose(
+        [
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.49139968, 0.48215827, 0.44653124],
+                std=[0.24703233, 0.24348505, 0.26158768],
+            ),
+        ]
+    )
+
+    trainDataset = datasets.CIFAR10(
+        train=True, root="./data", transform=train_transform, download=True
+    )
+    testDataset = datasets.CIFAR10(
+        train=False, root="./data", transform=test_transform, download=True
+    )
 
     # Split train dataset to have 10% validation dataset
-    valid_size=0.10
+    valid_size = 0.10
     num_train = len(trainDataset)
     indices = list(range(num_train))
     np.random.shuffle(indices)
@@ -57,16 +73,19 @@ def Cifar10Splits(batchSize=64):
 
     return trainLoader, validLoader, testLoader
 
+
 # JSON Files should be a dictionary, with the index being the current inference number, first = 0, second = 1 etc.
 # Each entry will have 3 values, the entropy, the accuracy (correct or not correct), and the time taken, exactly in that order
 def graphFromJson(filePath):
-    with open(filePath, 'r') as file:
+    with open(filePath, "r") as file:
         results = json.load(file)
 
-    _, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16,24))
+    _, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16, 24))
 
-    accuratePredictions = [value['entropy'] for value in results if value['correct'] is True]
-    totalPredictions = [value['entropy'] for value in results]
+    accuratePredictions = [
+        value["entropy"] for value in results if value["correct"] is True
+    ]
+    totalPredictions = [value["entropy"] for value in results]
 
     accurateCount, _ = np.histogram(accuratePredictions, bins=200)
     totalCount, totalBins = np.histogram(totalPredictions, bins=200)
@@ -76,22 +95,25 @@ def graphFromJson(filePath):
     ax1.set_title("Accuracy vs Entropy")
     ax1.set_ylabel("Cumulative Correct (%)")
 
-    ax2.plot(totalBins[:-1], 100*np.cumsum(totalCount)/np.sum(totalCount))
+    ax2.plot(totalBins[:-1], 100 * np.cumsum(totalCount) / np.sum(totalCount))
     ax2.set_title("Dataset Progress vs Entropy")
     ax2.set_ylabel("Progress (%)")
 
     plt.xlabel("Entropy")
     plt.show()
 
+
 def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
-    
+
     epoch = 100
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=0.001, momentum=0.9)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=learning_rate, weight_decay=0.001, momentum=0.9
+    )
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
 
     for e in range(epoch):
@@ -104,11 +126,11 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             images = images.to(device)
             labels = labels.to(device)
             exitNumber, outputs = model(images)
-            
+
             loss = criterion(outputs, labels)
-            writer.add_scalar('loss/batch_loss', loss.item(), e * len(trainLoader) + i)
+            writer.add_scalar("loss/batch_loss", loss.item(), e * len(trainLoader) + i)
             running_loss += loss.item()
-            
+
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
@@ -116,7 +138,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         train_loss = running_loss / len(trainLoader)
         print(f"Epoch {e} took {time.time() - start}, Loss: {train_loss}")
-                
+
         # Validation
         model.eval()
         with torch.no_grad():
@@ -131,14 +153,16 @@ def trainModel(model, trainLoader, validLoader, testLoader):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
                 val_loss += criterion(outputs, labels).item()
-        
+
             val_accuracy = 100 * correct / total
             val_loss /= len(validLoader)
-            writer.add_scalar('accuracy/val', val_accuracy, e)
-            print(f"Epoch {e}, Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.2f}%")
+            writer.add_scalar("accuracy/val", val_accuracy, e)
+            print(
+                f"Epoch {e}, Validation Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.2f}%"
+            )
 
-            writer.add_scalars('loss', {'train': train_loss, 'val': val_loss}, e)
-            
+            writer.add_scalars("loss", {"train": train_loss, "val": val_loss}, e)
+
         # Update learning rate
         lr_scheduler.step()
 
@@ -155,8 +179,11 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             correct += (predicted == labels).sum().item()
 
         test_accuracy = 100 * correct / total
-        writer.add_scalar('accuracy/test', test_accuracy)
-        print(f"Accuracy of the network on the {len(testLoader)} test images: {test_accuracy:.2f}%")
+        writer.add_scalar("accuracy/test", test_accuracy)
+        print(
+            f"Accuracy of the network on the {len(testLoader)} test images: {test_accuracy:.2f}%"
+        )
+
 
 # 1. Generate temporary results json
 # 2. Read in the data from the results json
@@ -165,11 +192,13 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 def getAccDataset(model, testLoader, fileName):
     fileFileName = generateJsonResults(model, fileName, testLoader)
 
-    with open(fileFileName, 'r') as file:
+    with open(fileFileName, "r") as file:
         results = json.load(file)
 
-    accuratePredictions = [value['entropy'] for value in results if value['correct'] is True]
-    totalPredictions = [value['entropy'] for value in results]
+    accuratePredictions = [
+        value["entropy"] for value in results if value["correct"] is True
+    ]
+    totalPredictions = [value["entropy"] for value in results]
 
     accurateCount, _ = np.histogram(accuratePredictions, bins=200)
     totalCount, totalBins = np.histogram(totalPredictions, bins=200)
@@ -179,12 +208,15 @@ def getAccDataset(model, testLoader, fileName):
 
     return cumulativeAccuracy, cumulativeDataset, totalBins
 
+
 def getEntropyForAccuracy(model, testLoader, target):
     acc, _, bins = getAccDataset(model, testLoader, "temp-results")
     return bins[np.where(acc < target)[0][0]]
 
+
 def getAccuracy(model, testLoader):
     return getAccDataset(model, testLoader, "temp-results")[0][-1]
+
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     trainModel(model, trainLoader, validLoader, testLoader)
@@ -197,6 +229,7 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
 
     exitTracker = generation.ExitTracker(model, accuracy)
     exitTracker.transformFunction()
+
 
 def generateJsonResults(model, modelName, testLoader):
     device = getDevice()
@@ -212,26 +245,27 @@ def generateJsonResults(model, modelName, testLoader):
             end = time.time()
 
             y_hat = torch.nn.functional.softmax(outputs, dim=1)
-            entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)            
+            entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)
             _, predicted = torch.max(outputs.data, 1)
 
             correct = predicted == labels
-            
+
             for e, c in zip(entropy, correct):
                 result = {
                     "entropy": e.item(),
                     "correct": c.item(),
                     "time_taken": end - start,
-                    "exit_number": exitNumber
+                    "exit_number": exitNumber,
                 }
                 results.append(result)
 
     fileName = f"{modelName}-{int(time.time())}.json"
-    
+
     with open(fileName, "a") as file:
         json.dump(results, file)
 
     return fileName
+
 
 def createModelsFolder(name):
     script_directory = os.path.dirname(os.path.realpath(__file__))
@@ -244,7 +278,8 @@ def createModelsFolder(name):
     else:
         print(f"Folder '{folder_path}' already exists.")
 
-class ReloadableModel():
+
+class ReloadableModel:
     def __init__(self, model_class, *args):
         for arg in args:
             print(arg)
@@ -256,7 +291,9 @@ class ReloadableModel():
         with tempfile.TemporaryFile("weights") as file:
             torch.save(self.model[0].state_dict(), file)
             importlib.reload(inspect.getmodule(self.model))
-            self.model = self.model_class(*(self.model_args)).load_state_dict(torch.load(file))
+            self.model = self.model_class(*(self.model_args)).load_state_dict(
+                torch.load(file)
+            )
 
         return self.model
 
