@@ -99,8 +99,7 @@ class ExitTracker:
     def __init__(self, model, accuracy):
         self.targetAccuracy = accuracy
         self.reloadable_model = model
-        self.model = self.reloadable_model.getModel()
-        self.ff_body_ast = getAstFromSource(self.model.forward)
+        self.ff_body_ast = getAstFromSource(self.reloadable_model.getModel().forward)
         assert isinstance(self.ff_body_ast.body[0], FunctionDef)
         self.ff_node_list = [x for x in self.ff_body_ast.body[0].body]
 
@@ -120,14 +119,6 @@ class ExitTracker:
         self.ff_new_node_list = deepcopy(self.ff_node_list)
         self.ff_new_node_list.insert(4, EarlyExit(exitAst, 0, 1))
 
-        print(f"{self.ff_new_node_list}")
-
-    # TODO: Function to test exit and set entropy threshold correctly
-
-    # TODO: Function to label all exit return values correctly
-
-    # TODO: Function to add a new exit and disable other exits
-
     def transformFunction(self):
         b = []
         for x in self.ff_new_node_list:
@@ -140,14 +131,12 @@ class ExitTracker:
         ast.fix_missing_locations(self.ff_body_ast)
 
         self.saveForwardFunction()
-        self.model = self.reloadable_model.reload()
+        self.reloadable_model.reload()
 
     def enableMiddleExit(self):
-        self.ff_new_node_list[4].updateThreshold(
-            30000000000000000000000000000000000000000000000000
-        )
+        self.ff_new_node_list[4].updateThreshold(300)
         self.saveForwardFunction()
-        self.model = self.reloadable_model.reload()
+        self.reloadable_model.reload()
 
     def setMiddleExitCorrectly(self):
         _, _, testLoader = helpers.Cifar10Splits()
@@ -155,12 +144,12 @@ class ExitTracker:
             helpers.getEntropyForAccuracy(self.model, testLoader, self.targetAccuracy)
         )
         self.saveForwardFunction()
-        self.model = self.reloadable_model.reload()
+        self.reloadable_model.reload()
 
     def saveForwardFunction(self):
-        filePath = inspect.getmodule(self.model).__file__
-        class_name = self.model.__class__.__name__
-        method_name = self.model.forward.__name__
+        filePath = inspect.getmodule(self.reloadable_model.getModel()).__file__
+        class_name = self.reloadable_model.getModel().__class__.__name__
+        method_name = self.reloadable_model.getModel().forward.__name__
 
         # Read the existing code from module.py
         with open(filePath, "r") as file:
@@ -360,26 +349,6 @@ exitAst = [
                 keywords=[keyword(arg="dim", value=Constant(value=1))],
             ),
         ),
-    ),
-    Module(
-        body=[
-            Expr(
-                value=Call(
-                    func=Name(id="print", ctx=Load()),
-                    args=[
-                        JoinedStr(
-                            values=[
-                                FormattedValue(
-                                    value=Name(id="entropy", ctx=Load()), conversion=-1
-                                )
-                            ]
-                        )
-                    ],
-                    keywords=[],
-                )
-            )
-        ],
-        type_ignores=[],
     ),
     If(
         test=Call(
