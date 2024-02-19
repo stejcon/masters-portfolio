@@ -107,7 +107,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
 
-    epoch = 100
+    epoch = 20
     learning_rate = 0.01
 
     criterion = nn.CrossEntropyLoss()
@@ -219,16 +219,21 @@ def getAccuracy(model, testLoader):
 
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
-    trainModel(model, trainLoader, validLoader, testLoader)
+    trainModel(model.getModel(), trainLoader, validLoader, testLoader)
 
     # Model now only contains full branch, get total accuracy
-    accuracy = getAccuracy(model, testLoader)
+    accuracy = getAccuracy(model.getModel(), testLoader)
 
-    for param in model.parameters():
+    for param in model.getModel().parameters():
         param.requires_grad = False
 
     exitTracker = generation.ExitTracker(model, accuracy)
-    exitTracker.transformFunction()
+    exitTracker.enableMiddleExit()
+
+    trainModel(model.reload(), trainLoader, validLoader, testLoader)
+    exitTracker.setMiddleExitCorrectly()
+
+    model.getModel().eval()
 
 
 def generateJsonResults(model, modelName, testLoader):
