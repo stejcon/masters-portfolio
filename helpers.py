@@ -286,21 +286,20 @@ def createModelsFolder(name):
 
 class ReloadableModel:
     def __init__(self, model_class, *args):
-        for arg in args:
-            print(arg)
         self.model = model_class(*args)
+        self.model.to(getDevice())
         self.model_class = model_class
         self.model_args = args
 
     def reload(self):
-        with tempfile.TemporaryFile("weights") as file:
-            torch.save(self.model[0].state_dict(), file)
+        with tempfile.TemporaryFile() as file:
+            torch.save(self.model.state_dict(), file)
+            file.seek(0)
             importlib.reload(inspect.getmodule(self.model))
-            self.model = self.model_class(*(self.model_args)).load_state_dict(
-                torch.load(file)
-            )
+            self.model = self.model_class(*(self.model_args))
+            self.model.load_state_dict(torch.load(file))
 
-        return self.model
+        return self.model.to(getDevice())
 
     def getModel(self):
         return self.model
