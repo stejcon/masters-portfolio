@@ -57,10 +57,8 @@ class ExitTracker:
     # TODO: Make the model taken in here a ReloadableModel
     def __init__(self, model, accuracy):
         self.targetAccuracy = accuracy
-        self.first_transform_complete = False
         self.model = model
         self.original_ast = getAstFromSource(self.model.forward)
-        self.prev_ast = getAstFromSource(self.model.forward)
         self.current_ast = getAstFromSource(self.model.forward)
         assert(isinstance(self.current_ast.body[0], FunctionDef))
         self.current_list = [x for x in self.current_ast.body[0].body]
@@ -89,45 +87,6 @@ class ExitTracker:
         # TODO: Instead of recompileForward, write the updated module and reload
         # self.recompileForward()
         self.saveForwardFunction()
-
-    def printCurrentAstAsSource(self):
-        filePath = inspect.getmodule(self.model).__file__ # type: ignore
-        class_name = self.model.__class__.__name__
-        method_name = self.model.forward.__name__
-
-        def rewrite_method_with_ast(file_path, class_name, method_name, new_method_ast):
-            # Read the existing code from module.py
-            with open(file_path, "r") as file:
-                existing_code = file.read()
-
-            # Function to replace the method with a new AST
-            def replace_method_with_ast(code, class_name, method_name, new_method_ast):
-                tree = ast.parse(code)
-
-                # Find the class node
-                for node in tree.body:
-                    if isinstance(node, ast.ClassDef) and node.name == class_name:
-                        # Find the existing method node
-                        for body_item in node.body:
-                            if isinstance(body_item, ast.FunctionDef) and body_item.name == method_name:
-                                # Replace the method node with the new AST
-                                method_index = node.body.index(body_item)
-                                node.body[method_index] = new_method_ast
-                                break
-
-                # Convert the modified AST back to code
-                modified_code = ast.unparse(tree)
-
-                return modified_code
-
-            # Modify the code
-            modified_code = replace_method_with_ast(existing_code, class_name, method_name, new_method_ast)
-
-            # Write the modified code back to module.py
-            with open(file_path, "w") as file:
-                file.write(modified_code)
-
-        rewrite_method_with_ast(filePath, class_name, method_name, self.current_ast)
 
     def saveForwardFunction(self):
         filePath: str = inspect.getmodule(self.model).__file__ # type: ignore
