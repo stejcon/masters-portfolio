@@ -1,4 +1,5 @@
 import ast
+from copy import deepcopy
 from ast import (
     Assign,
     FunctionDef,
@@ -22,13 +23,12 @@ from ast import (
 )
 import inspect
 import textwrap
-import torch
-import torch.nn as nn
+import helpers
 
 
 class EarlyExit:
     def __init__(self, node, threshold, id):
-        self.node = node
+        self.node = deepcopy(node)
         self.setThreshold(threshold)
         self.setId(id)
 
@@ -83,11 +83,11 @@ class EarlyExit:
 
 
 def getAstFromSource(x):
-    ast.parse(textwrap.dedent(inspect.getsource(x)))
+    return ast.parse(textwrap.dedent(inspect.getsource(x)))
 
 
 def getAstDump(x):
-    ast.dump(x, indent=4)
+    return ast.dump(x, indent=4)
 
 
 class ExitTracker:
@@ -101,13 +101,17 @@ class ExitTracker:
         self.ff_node_list = [x for x in self.ff_body_ast.body[0].body]
 
         self.exits = []
-        for i in range(len(self.ff_node_list)):
-            self.exits.append(EarlyExit(exitAst, 30, i + 1))
 
-        self.updated_forward_function_node_list = []
+        for i in range(len(self.ff_node_list) - 1):
+            # Disable all exits at beginning
+            self.exits.append(EarlyExit(exitAst, 0, i + 1))
+
+        self.ff_new_node_list = []
         for i in range(len(self.exits)):
-            self.updated_forward_function_node_list.append(self.ff_node_list[i])
-            self.updated_forward_function_node_list.append(self.exits[i])
+            self.ff_new_node_list.append(self.ff_node_list[i])
+            self.ff_new_node_list.append(self.exits[i])
+
+        self.ff_new_node_list.append(self.ff_node_list[-1])
 
     # TODO: Function to test exit and set entropy threshold correctly
 
@@ -116,10 +120,8 @@ class ExitTracker:
     # TODO: Function to add a new exit and disable other exits
 
     def transformFunction(self):
-        self.ff_node_list.insert(3, EarlyExit(exitAst, 37, 6))
-
         b = []
-        for x in self.ff_node_list:
+        for x in self.ff_new_node_list:
             if isinstance(x, EarlyExit):
                 b.extend(x.node)
             else:
@@ -130,6 +132,15 @@ class ExitTracker:
 
         self.saveForwardFunction()
         self.model = self.reloadable_model.reload()
+
+    def enableMiddleExit(self):
+        self.ff_new_node_list[7].updateThreshold(0)
+
+    def setMiddleExitCorrectly(self):
+        _, _, testLoader = helpers.Cifar10Splits()
+        self.ff_new_node_list[7].setThreshold(
+            helpers.getEntropyForAccuracy(self.model, testLoader, self.targetAccuracy)
+        )
 
     def saveForwardFunction(self):
         filePath = inspect.getmodule(self.model).__file__
