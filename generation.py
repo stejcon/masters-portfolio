@@ -102,16 +102,21 @@ class ExitTracker:
 
         self.exits = []
 
-        for i in range(len(self.ff_node_list) - 1):
-            # Disable all exits at beginning
-            self.exits.append(EarlyExit(exitAst, 0, i + 1))
+        # for i in range(len(self.ff_node_list) - 1):
+        #     # Disable all exits at beginning
+        #     self.exits.append(EarlyExit(exitAst, 0, i + 1))
 
-        self.ff_new_node_list = []
-        for i in range(len(self.exits)):
-            self.ff_new_node_list.append(self.ff_node_list[i])
-            self.ff_new_node_list.append(self.exits[i])
+        # self.ff_new_node_list = []
+        # for i in range(len(self.exits)):
+        #     self.ff_new_node_list.append(self.ff_node_list[i])
+        #     self.ff_new_node_list.append(self.exits[i])
 
-        self.ff_new_node_list.append(self.ff_node_list[-1])
+        # self.ff_new_node_list.append(self.ff_node_list[-1])
+
+        self.ff_new_node_list = deepcopy(self.ff_node_list)
+        self.ff_new_node_list.insert(4, EarlyExit(exitAst, 0, 1))
+
+        print(f"{self.ff_new_node_list}")
 
     # TODO: Function to test exit and set entropy threshold correctly
 
@@ -134,13 +139,19 @@ class ExitTracker:
         self.model = self.reloadable_model.reload()
 
     def enableMiddleExit(self):
-        self.ff_new_node_list[7].updateThreshold(0)
+        self.ff_new_node_list[4].updateThreshold(
+            30000000000000000000000000000000000000000000000000
+        )
+        self.saveForwardFunction()
+        self.model = self.reloadable_model.reload()
 
     def setMiddleExitCorrectly(self):
         _, _, testLoader = helpers.Cifar10Splits()
-        self.ff_new_node_list[7].setThreshold(
+        self.ff_new_node_list[4].setThreshold(
             helpers.getEntropyForAccuracy(self.model, testLoader, self.targetAccuracy)
         )
+        self.saveForwardFunction()
+        self.model = self.reloadable_model.reload()
 
     def saveForwardFunction(self):
         filePath = inspect.getmodule(self.model).__file__
@@ -346,6 +357,7 @@ exitAst = [
             ),
         ),
     ),
+
     If(
         test=Call(
             func=Attribute(value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()),
