@@ -20,6 +20,10 @@ from ast import (
     Compare,
     If,
     Add,
+    Module,
+    JoinedStr,
+    FormattedValue,
+    Expr,
 )
 import inspect
 import textwrap
@@ -357,7 +361,26 @@ exitAst = [
             ),
         ),
     ),
-
+    Module(
+        body=[
+            Expr(
+                value=Call(
+                    func=Name(id="print", ctx=Load()),
+                    args=[
+                        JoinedStr(
+                            values=[
+                                FormattedValue(
+                                    value=Name(id="entropy", ctx=Load()), conversion=-1
+                                )
+                            ]
+                        )
+                    ],
+                    keywords=[],
+                )
+            )
+        ],
+        type_ignores=[],
+    ),
     If(
         test=Call(
             func=Attribute(value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()),
