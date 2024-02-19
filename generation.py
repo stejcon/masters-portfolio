@@ -20,6 +20,10 @@ from ast import (
     Compare,
     If,
     Add,
+    Module,
+    JoinedStr,
+    FormattedValue,
+    Expr,
 )
 import inspect
 import textwrap
@@ -345,6 +349,26 @@ exitAst = [
                 keywords=[keyword(arg="dim", value=Constant(value=1))],
             ),
         ),
+    ),
+    Module(
+        body=[
+            Expr(
+                value=Call(
+                    func=Name(id="print", ctx=Load()),
+                    args=[
+                        JoinedStr(
+                            values=[
+                                FormattedValue(
+                                    value=Name(id="entropy", ctx=Load()), conversion=-1
+                                )
+                            ]
+                        )
+                    ],
+                    keywords=[],
+                )
+            )
+        ],
+        type_ignores=[],
     ),
     If(
         test=Call(
