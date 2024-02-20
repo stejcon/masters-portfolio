@@ -35,11 +35,11 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=10):
         super().__init__()
         self.inplanes = 64
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-        )
+        # self.conv1 = nn.Sequential(
+        #    nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
+        #    nn.BatchNorm2d(64),
+        #    nn.ReLU(),
+        # )
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer0 = self._make_layer(block, 64, layers[0], stride=1)
         self.layer1 = self._make_layer(block, 128, layers[1], stride=2)
@@ -64,7 +64,11 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = nn.Sequential(nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU())(x)
+        x = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+        )(x)
         x = self.maxpool(x)
         x = self.layer0(x)
         x = self.layer1(x)
@@ -75,6 +79,7 @@ class ResNet(nn.Module):
         x = self.fc(x)
         return (0, x)
 
+
 class HalfResNet(ResNet):
     def __init__(self, block, layers, num_classes=10):
         super(HalfResNet, self).__init__(block, layers, num_classes=10)
@@ -82,7 +87,11 @@ class HalfResNet(ResNet):
         self.num_classes = num_classes
 
     def forward(self, x):
-        x = self.conv1(x)
+        x = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+        )(x)
         x = self.maxpool(x)
         x = self.layer0(x)
         x = self.layer1(x)
