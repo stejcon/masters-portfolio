@@ -64,7 +64,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
+        x = nn.Sequential(nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3), nn.BatchNorm2d(64), nn.ReLU())(x)
         x = self.maxpool(x)
         x = self.layer0(x)
         x = self.layer1(x)
@@ -74,7 +74,6 @@ class ResNet(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return (0, x)
-
 
 class HalfResNet(ResNet):
     def __init__(self, block, layers, num_classes=10):
