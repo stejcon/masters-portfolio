@@ -219,14 +219,10 @@ def getAccuracy(model, testLoader):
 
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
-    # trainModel(model.getModel(), trainLoader, validLoader, testLoader)
-    model.getModel().load_state_dict(torch.load("./models/fullModel"))
+    trainModel(model.getModel(), trainLoader, validLoader, testLoader)
 
     # Model now only contains full branch, get total accuracy
     accuracy = getAccuracy(model.getModel(), testLoader)
-
-    for x in model.getModel().parameters():
-        print(f"{x}")
 
     exitTracker = generation.ExitTracker(model, accuracy)
     exitTracker.transformFunction()
@@ -306,7 +302,13 @@ class ReloadableModel:
             reloaded_module = sys.modules[module_name]
             self.model_class = getattr(reloaded_module, self.model_class.__name__)
             self.model = self.model_class(*(self.model_args))
-            self.model.load_state_dict(torch.load(file))
+            pretrained_dict = torch.load(file)
+            new_model_dict = self.model.state_dict()
+            pretrained_dict = {
+                k: v for k, v in pretrained_dict.items() if k in new_model_dict
+            }
+            new_model_dict.update(pretrained_dict)
+            self.model.load_state_dict(new_model_dict)
 
     def getModel(self):
         return self.model
