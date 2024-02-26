@@ -136,10 +136,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             loss.backward()
             optimizer.step()
 
-            break
-
-        break
-
         train_loss = running_loss / len(trainLoader)
         print(f"Epoch {e} took {time.time() - start}, Loss: {train_loss}")
 
@@ -169,8 +165,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         # Update learning rate
         lr_scheduler.step()
-
-    return
 
     model.eval()
     with torch.no_grad():
