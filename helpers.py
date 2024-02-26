@@ -136,6 +136,10 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             loss.backward()
             optimizer.step()
 
+            break
+
+        break
+
         train_loss = running_loss / len(trainLoader)
         print(f"Epoch {e} took {time.time() - start}, Loss: {train_loss}")
 
@@ -165,6 +169,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         # Update learning rate
         lr_scheduler.step()
+
+    return
 
     model.eval()
     with torch.no_grad():
@@ -295,6 +301,12 @@ class ReloadableModel:
 
     def reload(self):
         with tempfile.TemporaryFile() as file:
+            print(
+                f"======== Model Dict Before Saving ========\n{self.model.state_dict().keys()}\n"
+            )
+
+            for name, _ in self.model.named_parameters():
+                print(f"{name}")
             torch.save(self.model.state_dict(), file)
             file.seek(0)
             module_name = self.model_class.__module__
@@ -302,8 +314,18 @@ class ReloadableModel:
             reloaded_module = sys.modules[module_name]
             self.model_class = getattr(reloaded_module, self.model_class.__name__)
             self.model = self.model_class(*(self.model_args))
+            for name, _ in self.model.named_parameters():
+                print(f"{name}")
+            for param in self.model.parameters():
+                param.requires_grad = True
             pretrained_dict = torch.load(file)
+            print(
+                f"======== Model Dict After Loading ========\n{pretrained_dict.keys()}\n"
+            )
             new_model_dict = self.model.state_dict()
+            print(
+                f"======== New Model Expected Dict ========\n{new_model_dict.keys()}\n"
+            )
             pretrained_dict = {
                 k: v for k, v in pretrained_dict.items() if k in new_model_dict
             }
