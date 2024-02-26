@@ -20,10 +20,6 @@ from ast import (
     Compare,
     If,
     Add,
-    Module,
-    JoinedStr,
-    FormattedValue,
-    Expr,
 )
 import inspect
 import textwrap
@@ -96,6 +92,7 @@ def getAstDump(x):
 
 class ExitTracker:
     # TODO: Make the model taken in here a ReloadableModel
+    # TODO: Need to edit the __init__ function of the model to contain the layer of each exit
     def __init__(self, model, accuracy):
         self.targetAccuracy = accuracy
         self.reloadable_model = model
