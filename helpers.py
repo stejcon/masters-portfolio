@@ -109,6 +109,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
     epoch = 20
     learning_rate = 0.01
+    _ = model(torch.randn(1, 3, 224, 224))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(
