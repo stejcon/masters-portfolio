@@ -8,7 +8,7 @@ def main():
     trainLoader, validLoader, testLoader = helpers.Cifar10Splits()
 
     fullModel = helpers.ReloadableModel(
-        models.HalfResNet, models.ResidualBlock, [3, 4, 6, 3]
+        models.ResNet, models.ResidualBlock, [3, 4, 6, 3]
     )
     helpers.trainModelWithBranch(fullModel, trainLoader, validLoader, testLoader)
     torch.save(fullModel.getModel().state_dict(), "models/fullModel")
