@@ -20,7 +20,6 @@ from ast import (
     Compare,
     If,
     Add,
-    Expr,
 )
 import inspect
 import textwrap
@@ -263,43 +262,36 @@ exitAst = [
         ),
     ),
     Assign(
-        targets=[Name(id="exitlayer", ctx=Store())],
-        value=Call(
-            func=Attribute(
-                value=Attribute(
-                    value=Name(id="torch", ctx=Load()), attr="nn", ctx=Load()
-                ),
-                attr="Linear",
-                ctx=Load(),
-            ),
-            args=[
-                Call(
-                    func=Attribute(
-                        value=Name(id="y", ctx=Load()), attr="size", ctx=Load()
-                    ),
-                    args=[Constant(value=1)],
-                    keywords=[],
-                ),
-                Attribute(
-                    value=Name(id="self", ctx=Load()), attr="num_classes", ctx=Load()
-                ),
-            ],
-            keywords=[],
-        ),
-    ),
-    Expr(
-        value=Call(
-            func=Attribute(
-                value=Name(id="self", ctx=Load()), attr="register_module", ctx=Load()
-            ),
-            args=[Constant(value="exitlayer"), Name(id="exitlayer", ctx=Load())],
-            keywords=[],
-        )
-    ),
-    Assign(
         targets=[Name(id="y", ctx=Store())],
         value=Call(
-            func=Name(id="exitlayer", ctx=Load()),
+            func=Call(
+                func=Attribute(
+                    value=Attribute(
+                        value=Name(id="torch", ctx=Load()),
+                        attr="nn",
+                        ctx=Load(),
+                    ),
+                    attr="Linear",
+                    ctx=Load(),
+                ),
+                args=[
+                    Call(
+                        func=Attribute(
+                            value=Name(id="y", ctx=Load()),
+                            attr="size",
+                            ctx=Load(),
+                        ),
+                        args=[Constant(value=1)],
+                        keywords=[],
+                    ),
+                    Attribute(
+                        value=Name(id="self", ctx=Load()),
+                        attr="num_classes",
+                        ctx=Load(),
+                    ),
+                ],
+                keywords=[],
+            ),
             args=[Name(id="y", ctx=Load())],
             keywords=[],
         ),
