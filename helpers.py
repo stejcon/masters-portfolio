@@ -17,8 +17,6 @@ import importlib
 writer = SummaryWriter()
 
 
-# gpuString lets you define which GPU to use if there are multiple
-# Project presumes only one GPU is used
 def getDevice():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_default_device(device)
@@ -106,6 +104,7 @@ def graphFromJson(filePath):
 def trainModel(model, trainLoader, validLoader, testLoader):
     model.train()
     device = getDevice()
+    model.to(device)
 
     epoch = 20
     learning_rate = 0.01
@@ -122,7 +121,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
         model.train()
         running_loss = 0.0
         for i, (images, labels) in enumerate(trainLoader):
-            print(f"Epoch {e}: Inference {i}")
             # Move tensors to the configured device
             images = images.to(device)
             labels = labels.to(device)
@@ -136,6 +134,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            print(f"Epoch {e}: Inference {i} used exit {exitNumber}")
 
         train_loss = running_loss / len(trainLoader)
         print(f"Epoch {e} took {time.time() - start}, Loss: {train_loss}")
