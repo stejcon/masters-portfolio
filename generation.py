@@ -45,6 +45,7 @@ class EarlyExit:
         def edit_exit_threshold(nodes, threshold):
             edited_nodes = []
             for node in nodes:
+                # ERROR: Assert fails
                 assert (
                     isinstance(node, ast.With)
                     and isinstance(node.body[2], ast.If)
@@ -71,6 +72,7 @@ class EarlyExit:
         def edit_return_id(nodes, new_id):
             edited_nodes = []
             for node in nodes:
+                # ERROR: Assert fails
                 assert (
                     isinstance(node, ast.With)
                     and isinstance(node.body[2], ast.If)
