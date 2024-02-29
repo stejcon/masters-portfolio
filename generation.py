@@ -44,19 +44,24 @@ class EarlyExit:
 
         def edit_exit_threshold(nodes, threshold):
             edited_nodes = []
+
             for node in nodes:
-                # ERROR: Assert fails
-                assert (
-                    isinstance(node, ast.With)
-                    and isinstance(node.body[2], ast.If)
-                    and isinstance(node.body[2].test, ast.Call)
-                    and isinstance(node.body[2].test.args[0], ast.Compare)
-                    and isinstance(
-                        node.body[2].test.args[0].comparators[0], ast.Constant
+                if isinstance(node, With):
+                    assert (
+                        isinstance(node, ast.With)
+                        and isinstance(node.body[2], ast.If)
+                        and isinstance(node.body[2].test, ast.Call)
+                        and isinstance(node.body[2].test.args[0], ast.Compare)
+                        and isinstance(
+                            node.body[2].test.args[0].comparators[0], ast.Constant
+                        )
                     )
-                )
-                node.test.args[0].comparators[0] = ast.Constant(value=threshold)
+                    node.body[2].test.args[0].comparators[0] = ast.Constant(
+                        value=threshold
+                    )
+
                 edited_nodes.append(node)
+
             return edited_nodes
 
         self.node = edit_exit_threshold(self.node, threshold)
@@ -71,17 +76,20 @@ class EarlyExit:
     def updateReturn(self):
         def edit_return_id(nodes, new_id):
             edited_nodes = []
+
             for node in nodes:
-                # ERROR: Assert fails
-                assert (
-                    isinstance(node, ast.With)
-                    and isinstance(node.body[2], ast.If)
-                    and isinstance(node.body[2].body[0], ast.Return)
-                    and isinstance(node.body[2].body[0].value, ast.Tuple)
-                    and isinstance(node.body[2].body[0].value.elts[0], ast.Constant)
-                )
-                node.body[2].body[0].value.elts[0] = ast.Constant(value=new_id)
+                if isinstance(node, ast.With):
+                    assert (
+                        isinstance(node, ast.With)
+                        and isinstance(node.body[2], ast.If)
+                        and isinstance(node.body[2].body[0], ast.Return)
+                        and isinstance(node.body[2].body[0].value, ast.Tuple)
+                        and isinstance(node.body[2].body[0].value.elts[0], ast.Constant)
+                    )
+                    node.body[2].body[0].value.elts[0] = ast.Constant(value=new_id)
+
                 edited_nodes.append(node)
+
             return edited_nodes
 
         self.node = edit_return_id(self.node, self.id)
@@ -141,12 +149,10 @@ class ExitTracker:
         ast.fix_missing_locations(self.init_function_ast)
 
         self.saveUpdates()
-        self.reloadable_model.reload()
 
     def enableMiddleExit(self):
         self.ff_new_node_list[4].updateThreshold(300)
         self.saveUpdates()
-        self.reloadable_model.reload()
 
     def setMiddleExitCorrectly(self):
         _, _, testLoader = helpers.Cifar10Splits()
@@ -156,7 +162,6 @@ class ExitTracker:
             )
         )
         self.saveUpdates()
-        self.reloadable_model.reload()
 
     def saveForwardFunction(self):
         filePath = inspect.getmodule(self.reloadable_model.getModel()).__file__

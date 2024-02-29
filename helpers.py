@@ -108,7 +108,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
     epoch = 20
     learning_rate = 0.01
-    _ = model(torch.randn(1, 3, 224, 224))
 
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(
@@ -233,6 +232,7 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
         exitTracker.reloadable_model.getModel(), trainLoader, validLoader, testLoader
     )
     exitTracker.setMiddleExitCorrectly()
+    exitTracker.reloadable_model.reload()
 
     exitTracker.reloadable_model.getModel().eval()
 
@@ -288,10 +288,11 @@ class ReloadableModel:
         self.model.to(getDevice())
         self.model_class = model_class
         self.model_args = args
-        print(type(self.model))
+        _ = self.model(torch.randn(1, 3, 224, 224))
 
     def reload(self):
         with tempfile.TemporaryFile() as file:
+            torch.save(self.model.state_dict(), f"models/before-reload-{time.time()}")
             torch.save(self.model.state_dict(), file)
             file.seek(0)
             module_name = self.model_class.__module__
@@ -299,13 +300,12 @@ class ReloadableModel:
             reloaded_module = sys.modules[module_name]
             self.model_class = getattr(reloaded_module, self.model_class.__name__)
             self.model = self.model_class(*(self.model_args))
-            pretrained_dict = torch.load(file)
-            new_model_dict = self.model.state_dict()
-            pretrained_dict = {
-                k: v for k, v in pretrained_dict.items() if k in new_model_dict
-            }
-            new_model_dict.update(pretrained_dict)
-            self.model.load_state_dict(new_model_dict)
+            _ = self.model(torch.randn(1, 3, 224, 224))
+            saved_state_dict = torch.load(file)
+            self.model.load_state_dict(saved_state_dict, strict=False)
+            for name, param in self.model.named_parameters():
+                if "exit" not in name:
+                    param.requires_grad = False
 
     def getModel(self):
         return self.model
