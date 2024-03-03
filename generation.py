@@ -155,7 +155,7 @@ class ExitTracker:
         self.saveUpdates()
 
     def setMiddleExitCorrectly(self):
-        _, _, testLoader = helpers.Cifar10Splits()
+        _, _, testLoader = helpers.Cifar10Splits(1)
         self.ff_new_node_list[4].setThreshold(
             helpers.getEntropyForAccuracy(
                 self.reloadable_model.getModel(), testLoader, self.targetAccuracy

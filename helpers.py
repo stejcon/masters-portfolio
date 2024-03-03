@@ -3,6 +3,7 @@ import os
 import time
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
@@ -221,7 +222,8 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     trainModel(model.getModel(), trainLoader, validLoader, testLoader)
 
     # Model now only contains full branch, get total accuracy
-    accuracy = getAccuracy(model.getModel(), testLoader)
+    _, _, test = Cifar10Splits(1)
+    accuracy = getAccuracy(model.getModel(), test)
 
     exitTracker = generation.ExitTracker(model, accuracy)
     exitTracker.transformFunction()
@@ -250,20 +252,19 @@ def generateJsonResults(model, modelName, testLoader):
             exitNumber, outputs = model(images)
             end = time.time()
 
-            y_hat = torch.nn.functional.softmax(outputs, dim=1)
-            entropy = -torch.sum(y_hat * torch.log2(y_hat), dim=1)
+            pk = F.softmax(outputs.data, dim=1)
+            entropy = -torch.sum(pk * torch.log(pk + 1e-20))
             _, predicted = torch.max(outputs.data, 1)
 
             correct = predicted == labels
 
-            for e, c in zip(entropy, correct):
-                result = {
-                    "entropy": e.item(),
-                    "correct": c.item(),
-                    "time_taken": end - start,
-                    "exit_number": exitNumber,
-                }
-                results.append(result)
+            result = {
+                "entropy": entropy.item(),
+                "correct": correct.item(),
+                "time_taken": end - start,
+                "exit_number": exitNumber,
+            }
+            results.append(result)
 
     fileName = f"{modelName}-{int(time.time())}.json"
 
