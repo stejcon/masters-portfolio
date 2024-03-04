@@ -87,6 +87,9 @@ class EarlyExit:
                         and isinstance(node.body[2].body[0].value.elts[0], ast.Constant)
                     )
                     node.body[2].body[0].value.elts[0] = ast.Constant(value=new_id)
+                elif isinstance(node, Assign):
+                    if "exit" in node.value.func.attr:
+                        node.value.func.attr = f"exit{self.id}"
 
                 edited_nodes.append(node)
 
@@ -124,17 +127,21 @@ class ExitTracker:
         )
         self.ff_node_list = [x for x in self.original_ff_body_ast.body[0].body]
         self.ff_new_node_list = deepcopy(self.ff_node_list)
-        self.lastExitTrained = True
+        self.fullyTrained = False
 
         i = 1
-        while i < len(self.ff_new_node_list):
+        while not i > len(self.ff_new_node_list):
             self.ff_new_node_list.insert(
-                i, EarlyExit(deepcopy(exitAst), 0, (i - 1) / 2)
+                i, EarlyExit(deepcopy(exitAst), 0, int(((i - 1) / 2) + 1))
             )
             i += 2
 
-        self.ff_new_node_list[-2].setThreshold(300000)
-        self.current_exit = len(self.ff_new_node_list) - 2
+        self.ff_new_node_list[-1].setThreshold(300000)
+        self.current_exit = len(self.ff_new_node_list) - 1
+
+        for x in self.ff_new_node_list:
+            if isinstance(x, EarlyExit):
+                self.init_function_ast.body[0].body.append(x.lazyLayer)
 
     def saveAst(self):
         b = []
@@ -145,13 +152,14 @@ class ExitTracker:
                 b.append(x)
 
         self.original_ff_body_ast.body[0].body = b
-        self.init_function_ast.body[0].body.append(self.ff_new_node_list[4].lazyLayer)
         ast.fix_missing_locations(self.original_ff_body_ast)
         ast.fix_missing_locations(self.init_function_ast)
 
         self.saveUpdates()
 
     def setCurrentExitCorrectly(self):
+        if self.current_exit == len(self.ff_new_node_list) - 1:
+            return
         _, _, testLoader = helpers.Cifar10Splits(1)
         self.ff_new_node_list[self.current_exit].setThreshold(
             helpers.getEntropyForAccuracy(
@@ -163,13 +171,13 @@ class ExitTracker:
     def useNextExit(self):
         self.current_exit -= 2
         if self.current_exit < 1:
-            self.lastExitTrained = True
+            self.fullyTrained = True
             return
         self.ff_new_node_list[self.current_exit].setThreshold(300000)
         self.saveAst()
 
     def lastExitTrained(self):
-        return self.lastExitTrained
+        return self.fullyTrained
 
     def saveForwardFunction(self):
         filePath = inspect.getmodule(self.reloadable_model.getModel()).__file__

@@ -219,14 +219,18 @@ def getAccuracy(model, testLoader):
 
 
 def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
-    trainModel(model.getModel(), trainLoader, validLoader, testLoader)
+    exitTracker = generation.ExitTracker(model, 100)
+    exitTracker.saveAst()
+    exitTracker.reloadable_model.reload(False)
+    trainModel(
+        exitTracker.reloadable_model.getModel(), trainLoader, validLoader, testLoader
+    )
 
     # Model now only contains full branch, get total accuracy
     _, _, test = Cifar10Splits(1)
     accuracy = getAccuracy(model.getModel(), test)
-
-    exitTracker = generation.ExitTracker(model, accuracy)
-    exitTracker.saveAst()
+    exitTracker.targetAccuracy = accuracy
+    exitTracker.useNextExit()
 
     while not exitTracker.lastExitTrained():
         exitTracker.reloadable_model.reload()
@@ -297,7 +301,7 @@ class ReloadableModel:
         self.model_args = args
         _ = self.model(torch.randn(1, 3, 224, 224))
 
-    def reload(self):
+    def reload(self, grad=True):
         with tempfile.TemporaryFile() as file:
             torch.save(self.model.state_dict(), f"models/before-reload-{time.time()}")
             torch.save(self.model.state_dict(), file)
@@ -310,9 +314,10 @@ class ReloadableModel:
             _ = self.model(torch.randn(1, 3, 224, 224))
             saved_state_dict = torch.load(file)
             self.model.load_state_dict(saved_state_dict, strict=False)
-            for name, param in self.model.named_parameters():
-                if "exit" not in name:
-                    param.requires_grad = False
+            if grad:
+                for name, param in self.model.named_parameters():
+                    if "exit" not in name:
+                        param.requires_grad = False
 
     def getModel(self):
         return self.model
