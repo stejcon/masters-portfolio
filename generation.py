@@ -108,34 +108,35 @@ def getAstDump(x):
     return ast.dump(x, indent=4)
 
 
+# TODO: Add all exits disabled in init
+# TODO: Function to enable exits by keeping track of currently enabled exits
+# TODO: Train from bottom up
 class ExitTracker:
     def __init__(self, model, accuracy):
         self.targetAccuracy = accuracy
         self.reloadable_model = model
-        self.init_function_ast = getAstFromSource(
+        self.original_init_function_ast = getAstFromSource(
             self.reloadable_model.getModel().__init__
         )
-        self.ff_body_ast = getAstFromSource(self.reloadable_model.getModel().forward)
-        assert isinstance(self.ff_body_ast.body[0], FunctionDef)
-        self.ff_node_list = [x for x in self.ff_body_ast.body[0].body]
-
-        self.exits = []
-
-        # for i in range(len(self.ff_node_list) - 1):
-        #     # Disable all exits at beginning
-        #     self.exits.append(EarlyExit(exitAst, 0, i + 1))
-
-        # self.ff_new_node_list = []
-        # for i in range(len(self.exits)):
-        #     self.ff_new_node_list.append(self.ff_node_list[i])
-        #     self.ff_new_node_list.append(self.exits[i])
-
-        # self.ff_new_node_list.append(self.ff_node_list[-1])
-
+        self.init_function_ast = deepcopy(self.original_init_function_ast)
+        self.original_ff_body_ast = getAstFromSource(
+            self.reloadable_model.getModel().forward
+        )
+        self.ff_node_list = [x for x in self.original_ff_body_ast.body[0].body]
         self.ff_new_node_list = deepcopy(self.ff_node_list)
-        self.ff_new_node_list.insert(4, EarlyExit(exitAst, 0, 1))
+        self.lastExitTrained = True
 
-    def transformFunction(self):
+        i = 1
+        while i < len(self.ff_new_node_list):
+            self.ff_new_node_list.insert(
+                i, EarlyExit(deepcopy(exitAst), 0, (i - 1) / 2)
+            )
+            i += 2
+
+        self.ff_new_node_list[-2].setThreshold(300000)
+        self.current_exit = len(self.ff_new_node_list) - 2
+
+    def saveAst(self):
         b = []
         for x in self.ff_new_node_list:
             if isinstance(x, EarlyExit):
@@ -143,25 +144,32 @@ class ExitTracker:
             else:
                 b.append(x)
 
-        self.ff_body_ast.body[0].body = b
+        self.original_ff_body_ast.body[0].body = b
         self.init_function_ast.body[0].body.append(self.ff_new_node_list[4].lazyLayer)
-        ast.fix_missing_locations(self.ff_body_ast)
+        ast.fix_missing_locations(self.original_ff_body_ast)
         ast.fix_missing_locations(self.init_function_ast)
 
         self.saveUpdates()
 
-    def enableMiddleExit(self):
-        self.ff_new_node_list[4].updateThreshold(300)
-        self.saveUpdates()
-
-    def setMiddleExitCorrectly(self):
+    def setCurrentExitCorrectly(self):
         _, _, testLoader = helpers.Cifar10Splits(1)
-        self.ff_new_node_list[4].setThreshold(
+        self.ff_new_node_list[self.current_exit].setThreshold(
             helpers.getEntropyForAccuracy(
                 self.reloadable_model.getModel(), testLoader, self.targetAccuracy
             )
         )
         self.saveUpdates()
+
+    def useNextExit(self):
+        self.current_exit -= 2
+        if self.current_exit < 1:
+            self.lastExitTrained = True
+            return
+        self.ff_new_node_list[self.current_exit].setThreshold(300000)
+        self.saveAst()
+
+    def lastExitTrained(self):
+        return self.lastExitTrained
 
     def saveForwardFunction(self):
         filePath = inspect.getmodule(self.reloadable_model.getModel()).__file__
@@ -186,7 +194,7 @@ class ExitTracker:
                     ):
                         # Replace the method node with the new AST
                         method_index = node.body.index(body_item)
-                        node.body[method_index] = self.ff_body_ast
+                        node.body[method_index] = self.original_ff_body_ast
                         break
 
         # Convert the modified AST back to code
@@ -235,7 +243,7 @@ class ExitTracker:
 
     # TODO: Put this as the other runtime ast stuff into appendix
     def recompileForward(self):
-        code_object = compile(self.ff_body_ast, "", "exec")
+        code_object = compile(self.original_ff_body_ast, "", "exec")
         exec(code_object, globals())
         bound_method = globals()["forward"].__get__(self.model, self.model.__class__)
         setattr(self.model, "forward", bound_method)

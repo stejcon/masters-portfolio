@@ -226,15 +226,21 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     accuracy = getAccuracy(model.getModel(), test)
 
     exitTracker = generation.ExitTracker(model, accuracy)
-    exitTracker.transformFunction()
-    exitTracker.enableMiddleExit()
-    exitTracker.reloadable_model.reload()
+    exitTracker.saveAst()
 
-    trainModel(
-        exitTracker.reloadable_model.getModel(), trainLoader, validLoader, testLoader
-    )
-    exitTracker.setMiddleExitCorrectly()
-    exitTracker.reloadable_model.reload()
+    while not exitTracker.lastExitTrained():
+        exitTracker.reloadable_model.reload()
+
+        trainModel(
+            exitTracker.reloadable_model.getModel(),
+            trainLoader,
+            validLoader,
+            testLoader,
+        )
+
+        exitTracker.setCurrentExitCorrectly()
+        exitTracker.reloadable_model.reload()
+        exitTracker.useNextExit()
 
     exitTracker.reloadable_model.getModel().eval()
 
