@@ -211,7 +211,12 @@ def getAccDataset(model, testLoader, fileName):
 
 def getEntropyForAccuracy(model, testLoader, target):
     acc, _, bins = getAccDataset(model, testLoader, "temp-results")
-    return bins[np.where(acc < target)[0][0]]
+    a = np.asarray(acc < target)
+    a = np.asarray(a[:-1] != a[1:])
+    indices = np.nonzero(a[:-1] != a[1:])
+    if len(indices[0]) == 0:
+        return 0.0
+    return bins[indices[0]][0]
 
 
 def getAccuracy(model, testLoader):
@@ -246,6 +251,7 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
         exitTracker.reloadable_model.reload()
         exitTracker.useNextExit()
 
+    exitTracker.removeUnneededExits()
     exitTracker.reloadable_model.getModel().eval()
 
 
@@ -303,7 +309,6 @@ class ReloadableModel:
 
     def reload(self, grad=True):
         with tempfile.TemporaryFile() as file:
-            torch.save(self.model.state_dict(), f"models/before-reload-{time.time()}")
             torch.save(self.model.state_dict(), file)
             file.seek(0)
             module_name = self.model_class.__module__

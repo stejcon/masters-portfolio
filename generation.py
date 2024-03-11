@@ -27,17 +27,21 @@ import inspect
 import textwrap
 import helpers
 import re
+from itertools import filterfalse
 
 
 class EarlyExit:
     def __init__(self, node, threshold, id):
-        self.node = deepcopy(node)
-        self.lazyLayer = deepcopy(init_exit_node)
+        self.node = deepcopy(biggerExitAst)
+        self.lazyLayer = deepcopy(init_exit_nodes_bigger_exit)
         self.setThreshold(threshold)
         self.setId(id)
 
     def getAst(self):
         return self.node
+
+    def getThreshold(self):
+        return self.threshold
 
     def updateThreshold(self, threshold=None):
         if threshold is None:
@@ -88,7 +92,12 @@ class EarlyExit:
                         and isinstance(node.body[2].body[0].value.elts[0], ast.Constant)
                     )
                     node.body[2].body[0].value.elts[0] = ast.Constant(value=new_id)
-                elif isinstance(node, Assign):
+                elif (
+                    isinstance(node, Assign)
+                    and hasattr(node, "value")
+                    and hasattr(node.value, "func")
+                    and hasattr(node.value.func, "attr")
+                ):
                     if "exit" in node.value.func.attr:
                         attr = re.sub(r"\d+$", "", node.value.func.attr)
                         node.value.func.attr = f"{attr}{self.id}"
@@ -98,10 +107,10 @@ class EarlyExit:
             return edited_nodes
 
         self.node = edit_return_id(self.node, self.id)
-        # TODO: lazyLayer should be a list, and all nodes in the list should:
-        # 1. be an Assign
-        # 2. be updated in the same manner
-        self.lazyLayer.targets[0].attr = f"exit{self.id}"
+
+        for n in self.lazyLayer:
+            attr = re.sub(r"\d+$", "", n.targets[0].attr)
+            n.targets[0].attr = f"{attr}{self.id}"
 
     def setId(self, id):
         self.id = id
@@ -132,18 +141,17 @@ class ExitTracker:
         self.fullyTrained = False
 
         i = 1
-        while not i > len(self.ff_new_node_list):
+        while not i > len(self.ff_new_node_list) - 4:
             self.ff_new_node_list.insert(
                 i, EarlyExit(deepcopy(exitAst), 0, int(((i - 1) / 2) + 1))
             )
             i += 2
 
-        self.ff_new_node_list[-1].setThreshold(300000)
-        self.current_exit = len(self.ff_new_node_list) - 1
+        self.current_exit = i
 
         for x in self.ff_new_node_list:
             if isinstance(x, EarlyExit):
-                self.init_function_ast.body[0].body.append(x.lazyLayer)
+                self.init_function_ast.body[0].body.extend(x.lazyLayer)
 
     def saveAst(self):
         b = []
@@ -160,8 +168,6 @@ class ExitTracker:
         self.saveUpdates()
 
     def setCurrentExitCorrectly(self):
-        if self.current_exit == len(self.ff_new_node_list) - 1:
-            return
         _, _, testLoader = helpers.Cifar10Splits(1)
         self.ff_new_node_list[self.current_exit].setThreshold(
             helpers.getEntropyForAccuracy(
@@ -176,6 +182,33 @@ class ExitTracker:
             self.fullyTrained = True
             return
         self.ff_new_node_list[self.current_exit].setThreshold(300000)
+        self.saveAst()
+
+    # For each EarlyExit
+    # If threshold is below 0.1 (arbitrary rn, should be based on % of dataset)
+    # Remove exit from list
+    # Remove exit layers from init
+    # Renumber every exit
+    def removeUnneededExits(self):
+        x = []
+        for node in self.ff_new_node_list:
+            if isinstance(node, EarlyExit) and node.getThreshold() < 0.1:
+                self.init_function_ast.body[0].body = list(
+                    filterfalse(
+                        lambda x: x in node.lazyLayer,
+                        self.init_function_ast.body[0].body,
+                    )
+                )
+                continue
+            x.append(node)
+
+        c = 1
+        for item in x:
+            if isinstance(item, EarlyExit):
+                item.setId(c)
+                c += 1
+
+        self.ff_new_node_list = x
         self.saveAst()
 
     def lastExitTrained(self):
@@ -314,6 +347,24 @@ biggerExitAst = [
                 value=Name(id="self", ctx=Load()), attr="exitconv1", ctx=Load()
             ),
             args=[Name(id="x", ctx=Load())],
+            keywords=[],
+        ),
+    ),
+    Assign(
+        targets=[Name(id="y", ctx=Store())],
+        value=Call(
+            func=Call(
+                func=Attribute(
+                    value=Attribute(
+                        value=Name(id="torch", ctx=Load()), attr="nn", ctx=Load()
+                    ),
+                    attr="Flatten",
+                    ctx=Load(),
+                ),
+                args=[],
+                keywords=[],
+            ),
+            args=[Name(id="y", ctx=Load())],
             keywords=[],
         ),
     ),
@@ -556,9 +607,8 @@ init_exit_nodes_bigger_exit = [
                 value=Name(id="nn", ctx=Load()), attr="LazyConv2d", ctx=Load()
             ),
             args=[
-                Attribute(
-                    value=Name(id="self", ctx=Load()), attr="num_classes", ctx=Load()
-                )
+                Constant(value=1),
+                Constant(value=1),
             ],
             keywords=[],
         ),
