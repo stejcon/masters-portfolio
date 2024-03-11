@@ -26,6 +26,7 @@ from ast import (
 import inspect
 import textwrap
 import helpers
+import re
 
 
 class EarlyExit:
@@ -89,13 +90,17 @@ class EarlyExit:
                     node.body[2].body[0].value.elts[0] = ast.Constant(value=new_id)
                 elif isinstance(node, Assign):
                     if "exit" in node.value.func.attr:
-                        node.value.func.attr = f"exit{self.id}"
+                        attr = re.sub(r"\d+$", "", node.value.func.attr)
+                        node.value.func.attr = f"{attr}{self.id}"
 
                 edited_nodes.append(node)
 
             return edited_nodes
 
         self.node = edit_return_id(self.node, self.id)
+        # TODO: lazyLayer should be a list, and all nodes in the list should:
+        # 1. be an Assign
+        # 2. be updated in the same manner
         self.lazyLayer.targets[0].attr = f"exit{self.id}"
 
     def setId(self, id):
@@ -111,9 +116,6 @@ def getAstDump(x):
     return ast.dump(x, indent=4)
 
 
-# TODO: Add all exits disabled in init
-# TODO: Function to enable exits by keeping track of currently enabled exits
-# TODO: Train from bottom up
 class ExitTracker:
     def __init__(self, model, accuracy):
         self.targetAccuracy = accuracy
@@ -304,6 +306,111 @@ class EditReturnId(ast.NodeTransformer):
         return node
 
 
+biggerExitAst = [
+    Assign(
+        targets=[Name(id="y", ctx=Store())],
+        value=Call(
+            func=Attribute(
+                value=Name(id="self", ctx=Load()), attr="exitconv1", ctx=Load()
+            ),
+            args=[Name(id="x", ctx=Load())],
+            keywords=[],
+        ),
+    ),
+    Assign(
+        targets=[Name(id="y", ctx=Store())],
+        value=Call(
+            func=Attribute(
+                value=Name(id="self", ctx=Load()), attr="exitlin1", ctx=Load()
+            ),
+            args=[Name(id="y", ctx=Load())],
+            keywords=[],
+        ),
+    ),
+    With(
+        items=[
+            withitem(
+                context_expr=Call(
+                    func=Attribute(
+                        value=Name(id="torch", ctx=Load()), attr="no_grad", ctx=Load()
+                    ),
+                    args=[],
+                    keywords=[],
+                )
+            )
+        ],
+        body=[
+            Assign(
+                targets=[Name(id="pk", ctx=Store())],
+                value=Call(
+                    func=Attribute(
+                        value=Name(id="F", ctx=Load()), attr="softmax", ctx=Load()
+                    ),
+                    args=[Name(id="y", ctx=Load())],
+                    keywords=[keyword(arg="dim", value=Constant(value=1))],
+                ),
+            ),
+            Assign(
+                targets=[Name(id="entr", ctx=Store())],
+                value=UnaryOp(
+                    op=USub(),
+                    operand=Call(
+                        func=Attribute(
+                            value=Name(id="torch", ctx=Load()), attr="sum", ctx=Load()
+                        ),
+                        args=[
+                            BinOp(
+                                left=Name(id="pk", ctx=Load()),
+                                op=Mult(),
+                                right=Call(
+                                    func=Attribute(
+                                        value=Name(id="torch", ctx=Load()),
+                                        attr="log",
+                                        ctx=Load(),
+                                    ),
+                                    args=[
+                                        BinOp(
+                                            left=Name(id="pk", ctx=Load()),
+                                            op=Add(),
+                                            right=Constant(value=1e-20),
+                                        )
+                                    ],
+                                    keywords=[],
+                                ),
+                            )
+                        ],
+                        keywords=[],
+                    ),
+                ),
+            ),
+            If(
+                test=Call(
+                    func=Attribute(
+                        value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()
+                    ),
+                    args=[
+                        Compare(
+                            left=Name(id="entr", ctx=Load()),
+                            ops=[Lt()],
+                            comparators=[Constant(value=300000)],
+                        )
+                    ],
+                    keywords=[],
+                ),
+                body=[
+                    Return(
+                        value=Tuple(
+                            elts=[Constant(value=1), Name(id="y", ctx=Load())],
+                            ctx=Load(),
+                        )
+                    )
+                ],
+                orelse=[],
+            ),
+        ],
+    ),
+]
+
 exitAst = [
     Assign(
         targets=[Name(id="y", ctx=Store())],
@@ -438,3 +545,38 @@ init_exit_node = Assign(
         keywords=[],
     ),
 )
+
+init_exit_nodes_bigger_exit = [
+    Assign(
+        targets=[
+            Attribute(value=Name(id="self", ctx=Load()), attr="exitconv1", ctx=Store())
+        ],
+        value=Call(
+            func=Attribute(
+                value=Name(id="nn", ctx=Load()), attr="LazyConv2d", ctx=Load()
+            ),
+            args=[
+                Attribute(
+                    value=Name(id="self", ctx=Load()), attr="num_classes", ctx=Load()
+                )
+            ],
+            keywords=[],
+        ),
+    ),
+    Assign(
+        targets=[
+            Attribute(value=Name(id="self", ctx=Load()), attr="exitlin1", ctx=Store())
+        ],
+        value=Call(
+            func=Attribute(
+                value=Name(id="nn", ctx=Load()), attr="LazyLinear", ctx=Load()
+            ),
+            args=[
+                Attribute(
+                    value=Name(id="self", ctx=Load()), attr="num_classes", ctx=Load()
+                )
+            ],
+            keywords=[],
+        ),
+    ),
+]
