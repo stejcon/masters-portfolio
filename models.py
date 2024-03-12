@@ -77,7 +77,7 @@ class BaseResNet(nn.Module):
         return (0, x)
 
 
-class BiggerExitResNet(nn.Module):
+class StrippedBiggerExitResNet(nn.Module):
     def __init__(self, block, layers, num_classes=10):
         super().__init__()
         self.inplanes = 64
@@ -94,6 +94,10 @@ class BiggerExitResNet(nn.Module):
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512, num_classes)
         self.num_classes = num_classes
+        self.exitconv5 = nn.LazyConv2d(1, 1)
+        self.exitlin5 = nn.LazyLinear(self.num_classes)
+        self.exitconv6 = nn.LazyConv2d(1, 1)
+        self.exitlin6 = nn.LazyLinear(self.num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -115,7 +119,128 @@ class BiggerExitResNet(nn.Module):
         x = self.layer0(x)
         x = self.layer1(x)
         x = self.layer2(x)
+        y = self.exitconv5(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin5(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 0.6140934772207401):
+                return (5, y)
         x = self.layer3(x)
+        y = self.exitconv6(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin6(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 1.026354412062792):
+                return (6, y)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class BiggerExitResNet(nn.Module):
+    def __init__(self, block, layers, num_classes=10):
+        super().__init__()
+        self.inplanes = 64
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+        )
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer0 = self._make_layer(block, 64, layers[0], stride=1)
+        self.layer1 = self._make_layer(block, 128, layers[1], stride=2)
+        self.layer2 = self._make_layer(block, 256, layers[2], stride=2)
+        self.layer3 = self._make_layer(block, 512, layers[3], stride=2)
+        self.avgpool = nn.AvgPool2d(7, stride=1)
+        self.fc = nn.Linear(512, num_classes)
+        self.num_classes = num_classes
+        self.exitconv1 = nn.LazyConv2d(1, 1)
+        self.exitlin1 = nn.LazyLinear(self.num_classes)
+        self.exitconv2 = nn.LazyConv2d(1, 1)
+        self.exitlin2 = nn.LazyLinear(self.num_classes)
+        self.exitconv3 = nn.LazyConv2d(1, 1)
+        self.exitlin3 = nn.LazyLinear(self.num_classes)
+        self.exitconv4 = nn.LazyConv2d(1, 1)
+        self.exitlin4 = nn.LazyLinear(self.num_classes)
+        self.exitconv5 = nn.LazyConv2d(1, 1)
+        self.exitlin5 = nn.LazyLinear(self.num_classes)
+        self.exitconv6 = nn.LazyConv2d(1, 1)
+        self.exitlin6 = nn.LazyLinear(self.num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1):
+        downsample = None
+        if stride != 1 or self.inplanes != planes:
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes, kernel_size=1, stride=stride),
+                nn.BatchNorm2d(planes),
+            )
+        layers = []
+        layers.append(block(self.inplanes, planes, stride, downsample))
+        self.inplanes = planes
+        for _ in range(1, blocks):
+            layers.append(block(self.inplanes, planes))
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        y = self.exitconv1(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin1(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 0.13258273735642434):
+                return (1, y)
+        x = self.maxpool(x)
+        y = self.exitconv2(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin2(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 0.1333181261084974):
+                return (2, y)
+        x = self.layer0(x)
+        y = self.exitconv3(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin3(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 0.47723102875053885):
+                return (3, y)
+        x = self.layer1(x)
+        y = self.exitconv4(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin4(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 0.40452422946691513):
+                return (4, y)
+        x = self.layer2(x)
+        y = self.exitconv5(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin5(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 0.6140934772207401):
+                return (5, y)
+        x = self.layer3(x)
+        y = self.exitconv6(x)
+        y = torch.nn.Flatten()(y)
+        y = self.exitlin6(y)
+        with torch.no_grad():
+            pk = F.softmax(y, dim=1)
+            entr = -torch.sum(pk * torch.log(pk + 1e-20))
+            if torch.all(entr < 1.026354412062792):
+                return (6, y)
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
