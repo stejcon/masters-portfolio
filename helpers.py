@@ -215,7 +215,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
 
     for e in range(epoch):
-        break
         start = time.time()
         model.train()
         running_loss = 0.0
@@ -264,8 +263,6 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         # Update learning rate
         lr_scheduler.step()
-
-    return
 
     model.eval()
     with torch.no_grad():
