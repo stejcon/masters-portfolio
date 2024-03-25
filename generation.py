@@ -32,8 +32,8 @@ from itertools import filterfalse
 
 class EarlyExit:
     def __init__(self, node, threshold, id):
-        self.node = deepcopy(biggerExitAst)
-        self.lazyLayer = deepcopy(init_exit_nodes_bigger_exit)
+        self.node = deepcopy(exitAst)
+        self.lazyLayer = deepcopy(init_exit_node)
         self.setThreshold(threshold)
         self.setId(id)
 
@@ -51,19 +51,15 @@ class EarlyExit:
             edited_nodes = []
 
             for node in nodes:
-                if isinstance(node, With):
+                if isinstance(node, If):
                     assert (
-                        isinstance(node, ast.With)
-                        and isinstance(node.body[2], ast.If)
-                        and isinstance(node.body[2].test, ast.Call)
-                        and isinstance(node.body[2].test.args[0], ast.Compare)
-                        and isinstance(
-                            node.body[2].test.args[0].comparators[0], ast.Constant
-                        )
+                        isinstance(node, ast.If)
+                        and isinstance(node, ast.If)
+                        and isinstance(node.test, ast.Call)
+                        and isinstance(node.test.args[0], ast.Compare)
+                        and isinstance(node.test.args[0].comparators[0], ast.Constant)
                     )
-                    node.body[2].test.args[0].comparators[0] = ast.Constant(
-                        value=threshold
-                    )
+                    node.test.args[0].comparators[0] = ast.Constant(value=threshold)
 
                 edited_nodes.append(node)
 
@@ -83,15 +79,14 @@ class EarlyExit:
             edited_nodes = []
 
             for node in nodes:
-                if isinstance(node, ast.With):
+                if isinstance(node, ast.If):
                     assert (
-                        isinstance(node, ast.With)
-                        and isinstance(node.body[2], ast.If)
-                        and isinstance(node.body[2].body[0], ast.Return)
-                        and isinstance(node.body[2].body[0].value, ast.Tuple)
-                        and isinstance(node.body[2].body[0].value.elts[0], ast.Constant)
+                        isinstance(node, ast.If)
+                        and isinstance(node.body[0], ast.Return)
+                        and isinstance(node.body[0].value, ast.Tuple)
+                        and isinstance(node.body[0].value.elts[0], ast.Constant)
                     )
-                    node.body[2].body[0].value.elts[0] = ast.Constant(value=new_id)
+                    node.body[0].value.elts[0] = ast.Constant(value=new_id)
                 elif (
                     isinstance(node, Assign)
                     and hasattr(node, "value")
@@ -377,87 +372,68 @@ biggerExitAst = [
             keywords=[],
         ),
     ),
-    With(
-        items=[
-            withitem(
-                context_expr=Call(
-                    func=Attribute(
-                        value=Name(id="torch", ctx=Load()), attr="no_grad", ctx=Load()
-                    ),
-                    args=[],
-                    keywords=[],
+    Assign(
+        targets=[Name(id="pk", ctx=Store())],
+        value=Call(
+            func=Attribute(value=Name(id="F", ctx=Load()), attr="softmax", ctx=Load()),
+            args=[Name(id="y", ctx=Load())],
+            keywords=[keyword(arg="dim", value=Constant(value=1))],
+        ),
+    ),
+    Assign(
+        targets=[Name(id="entr", ctx=Store())],
+        value=UnaryOp(
+            op=USub(),
+            operand=Call(
+                func=Attribute(
+                    value=Name(id="torch", ctx=Load()), attr="sum", ctx=Load()
+                ),
+                args=[
+                    BinOp(
+                        left=Name(id="pk", ctx=Load()),
+                        op=Mult(),
+                        right=Call(
+                            func=Attribute(
+                                value=Name(id="torch", ctx=Load()),
+                                attr="log",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                BinOp(
+                                    left=Name(id="pk", ctx=Load()),
+                                    op=Add(),
+                                    right=Constant(value=1e-20),
+                                )
+                            ],
+                            keywords=[],
+                        ),
+                    )
+                ],
+                keywords=[],
+            ),
+        ),
+    ),
+    If(
+        test=Call(
+            func=Attribute(value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()),
+            args=[
+                Compare(
+                    left=Name(id="entr", ctx=Load()),
+                    ops=[Lt()],
+                    comparators=[Constant(value=300000)],
+                )
+            ],
+            keywords=[],
+        ),
+        body=[
+            Return(
+                value=Tuple(
+                    elts=[Constant(value=1), Name(id="y", ctx=Load())],
+                    ctx=Load(),
                 )
             )
         ],
-        body=[
-            Assign(
-                targets=[Name(id="pk", ctx=Store())],
-                value=Call(
-                    func=Attribute(
-                        value=Name(id="F", ctx=Load()), attr="softmax", ctx=Load()
-                    ),
-                    args=[Name(id="y", ctx=Load())],
-                    keywords=[keyword(arg="dim", value=Constant(value=1))],
-                ),
-            ),
-            Assign(
-                targets=[Name(id="entr", ctx=Store())],
-                value=UnaryOp(
-                    op=USub(),
-                    operand=Call(
-                        func=Attribute(
-                            value=Name(id="torch", ctx=Load()), attr="sum", ctx=Load()
-                        ),
-                        args=[
-                            BinOp(
-                                left=Name(id="pk", ctx=Load()),
-                                op=Mult(),
-                                right=Call(
-                                    func=Attribute(
-                                        value=Name(id="torch", ctx=Load()),
-                                        attr="log",
-                                        ctx=Load(),
-                                    ),
-                                    args=[
-                                        BinOp(
-                                            left=Name(id="pk", ctx=Load()),
-                                            op=Add(),
-                                            right=Constant(value=1e-20),
-                                        )
-                                    ],
-                                    keywords=[],
-                                ),
-                            )
-                        ],
-                        keywords=[],
-                    ),
-                ),
-            ),
-            If(
-                test=Call(
-                    func=Attribute(
-                        value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()
-                    ),
-                    args=[
-                        Compare(
-                            left=Name(id="entr", ctx=Load()),
-                            ops=[Lt()],
-                            comparators=[Constant(value=300000)],
-                        )
-                    ],
-                    keywords=[],
-                ),
-                body=[
-                    Return(
-                        value=Tuple(
-                            elts=[Constant(value=1), Name(id="y", ctx=Load())],
-                            ctx=Load(),
-                        )
-                    )
-                ],
-                orelse=[],
-            ),
-        ],
+        orelse=[],
     ),
 ]
 
@@ -497,104 +473,91 @@ exitAst = [
             keywords=[],
         ),
     ),
-    With(
-        items=[
-            withitem(
-                context_expr=Call(
-                    func=Attribute(
-                        value=Name(id="torch", ctx=Load()), attr="no_grad", ctx=Load()
-                    ),
-                    args=[],
-                    keywords=[],
+    Assign(
+        targets=[Name(id="pk", ctx=Store())],
+        value=Call(
+            func=Attribute(value=Name(id="F", ctx=Load()), attr="softmax", ctx=Load()),
+            args=[Name(id="y", ctx=Load())],
+            keywords=[keyword(arg="dim", value=Constant(value=1))],
+        ),
+    ),
+    Assign(
+        targets=[Name(id="entr", ctx=Store())],
+        value=UnaryOp(
+            op=USub(),
+            operand=Call(
+                func=Attribute(
+                    value=Name(id="torch", ctx=Load()), attr="sum", ctx=Load()
+                ),
+                args=[
+                    BinOp(
+                        left=Name(id="pk", ctx=Load()),
+                        op=Mult(),
+                        right=Call(
+                            func=Attribute(
+                                value=Name(id="torch", ctx=Load()),
+                                attr="log",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                BinOp(
+                                    left=Name(id="pk", ctx=Load()),
+                                    op=Add(),
+                                    right=Constant(value=1e-20),
+                                )
+                            ],
+                            keywords=[],
+                        ),
+                    )
+                ],
+                keywords=[],
+            ),
+        ),
+    ),
+    If(
+        test=Call(
+            func=Attribute(value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()),
+            args=[
+                Compare(
+                    left=Name(id="entr", ctx=Load()),
+                    ops=[Lt()],
+                    comparators=[Constant(value=300)],
+                )
+            ],
+            keywords=[],
+        ),
+        body=[
+            Return(
+                value=Tuple(
+                    elts=[Constant(value=1), Name(id="y", ctx=Load())],
+                    ctx=Load(),
                 )
             )
         ],
-        body=[
-            Assign(
-                targets=[Name(id="pk", ctx=Store())],
-                value=Call(
-                    func=Attribute(
-                        value=Name(id="F", ctx=Load()), attr="softmax", ctx=Load()
-                    ),
-                    args=[Name(id="y", ctx=Load())],
-                    keywords=[keyword(arg="dim", value=Constant(value=1))],
-                ),
-            ),
-            Assign(
-                targets=[Name(id="entr", ctx=Store())],
-                value=UnaryOp(
-                    op=USub(),
-                    operand=Call(
-                        func=Attribute(
-                            value=Name(id="torch", ctx=Load()), attr="sum", ctx=Load()
-                        ),
-                        args=[
-                            BinOp(
-                                left=Name(id="pk", ctx=Load()),
-                                op=Mult(),
-                                right=Call(
-                                    func=Attribute(
-                                        value=Name(id="torch", ctx=Load()),
-                                        attr="log",
-                                        ctx=Load(),
-                                    ),
-                                    args=[
-                                        BinOp(
-                                            left=Name(id="pk", ctx=Load()),
-                                            op=Add(),
-                                            right=Constant(value=1e-20),
-                                        )
-                                    ],
-                                    keywords=[],
-                                ),
-                            )
-                        ],
-                        keywords=[],
-                    ),
-                ),
-            ),
-            If(
-                test=Call(
-                    func=Attribute(
-                        value=Name(id="torch", ctx=Load()), attr="all", ctx=Load()
-                    ),
-                    args=[
-                        Compare(
-                            left=Name(id="entr", ctx=Load()),
-                            ops=[Lt()],
-                            comparators=[Constant(value=300)],
-                        )
-                    ],
-                    keywords=[],
-                ),
-                body=[
-                    Return(
-                        value=Tuple(
-                            elts=[Constant(value=1), Name(id="y", ctx=Load())],
-                            ctx=Load(),
-                        )
-                    )
-                ],
-                orelse=[],
-            ),
-        ],
+        orelse=[],
     ),
 ]
 
-init_exit_node = Assign(
-    targets=[Attribute(value=Name(id="self", ctx=Load()), attr="exit1", ctx=Store())],
-    value=Call(
-        func=Attribute(
-            value=Attribute(value=Name(id="torch", ctx=Load()), attr="nn", ctx=Load()),
-            attr="LazyLinear",
-            ctx=Load(),
-        ),
-        args=[
-            Name(id="num_classes", ctx=Load()),
+init_exit_node = [
+    Assign(
+        targets=[
+            Attribute(value=Name(id="self", ctx=Load()), attr="exit1", ctx=Store())
         ],
-        keywords=[],
-    ),
-)
+        value=Call(
+            func=Attribute(
+                value=Attribute(
+                    value=Name(id="torch", ctx=Load()), attr="nn", ctx=Load()
+                ),
+                attr="LazyLinear",
+                ctx=Load(),
+            ),
+            args=[
+                Name(id="num_classes", ctx=Load()),
+            ],
+            keywords=[],
+        ),
+    )
+]
 
 init_exit_nodes_bigger_exit = [
     Assign(

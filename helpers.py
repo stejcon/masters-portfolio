@@ -230,7 +230,14 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
             # Backward and optimize
             optimizer.zero_grad()
-            loss.backward()
+            try:
+                loss.backward()
+            except RuntimeError:
+                print("loss.backward failed")
+                print(f"outputs are\n{outputs}")
+                print(f"labels are\n{labels}")
+                print()
+
             optimizer.step()
             print(f"Epoch {e}: Inference {i} used exit {exitNumber}")
 
