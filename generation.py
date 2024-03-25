@@ -167,8 +167,7 @@ class ExitTracker:
 
         self.saveUpdates()
 
-    def setCurrentExitCorrectly(self):
-        _, _, testLoader = helpers.Cifar10Splits(1)
+    def setCurrentExitCorrectly(self, testLoader):
         self.ff_new_node_list[self.current_exit].setThreshold(
             helpers.getEntropyForAccuracy(
                 self.reloadable_model.getModel(), testLoader, self.targetAccuracy
@@ -591,7 +590,7 @@ init_exit_node = Assign(
             ctx=Load(),
         ),
         args=[
-            Attribute(value=Name(id="self", ctx=Load()), attr="num_classes", ctx=Load())
+            Name(id="num_classes", ctx=Load()),
         ],
         keywords=[],
     ),
@@ -622,9 +621,7 @@ init_exit_nodes_bigger_exit = [
                 value=Name(id="nn", ctx=Load()), attr="LazyLinear", ctx=Load()
             ),
             args=[
-                Attribute(
-                    value=Name(id="self", ctx=Load()), attr="num_classes", ctx=Load()
-                )
+                Name(id="num_classes", ctx=Load()),
             ],
             keywords=[],
         ),

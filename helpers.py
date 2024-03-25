@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.tensorboard.writer import SummaryWriter
+import torchvision
 import generation
 import tempfile
 import sys
@@ -33,8 +34,8 @@ def Cifar10Splits(batchSize=64):
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=[0.49139968, 0.48215827, 0.44653124],
-                std=[0.24703233, 0.24348505, 0.26158768],
+                mean=[0.4914, 0.4822, 0.4465],
+                std=[0.2470, 0.2435, 0.2616],
             ),
         ]
     )
@@ -71,6 +72,111 @@ def Cifar10Splits(batchSize=64):
     testLoader = DataLoader(testDataset, batch_size=batchSize)
 
     return trainLoader, validLoader, testLoader
+
+
+def get_custom_dataloaders(dataset_name, batch_size=64, validation_split=0.1):
+    if dataset_name == "cifar10":
+        transform = transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(10),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.4914, 0.4822, 0.4465],
+                    std=[0.2470, 0.2435, 0.2616],
+                ),
+            ]
+        )
+        train_dataset = torchvision.datasets.CIFAR10(
+            root="./data", train=True, download=True, transform=transform
+        )
+        test_dataset = torchvision.datasets.CIFAR10(
+            root="./data", train=False, download=True, transform=transform
+        )
+    elif dataset_name == "cifar100":
+        transform = transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(10),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.5071, 0.4866, 0.4409],
+                    std=[0.2673, 0.2564, 0.2761],
+                ),
+            ]
+        )
+        train_dataset = torchvision.datasets.CIFAR100(
+            root="./data", train=True, download=True, transform=transform
+        )
+        test_dataset = torchvision.datasets.CIFAR100(
+            root="./data", train=False, download=True, transform=transform
+        )
+    elif dataset_name == "qmnist":
+        transform = transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(10),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.1308, 0.1308, 0.1308],
+                    std=[0.3088, 0.3088, 0.3088],
+                ),
+            ]
+        )
+        train_dataset = torchvision.datasets.QMNIST(
+            root="./data", train=True, download=True, transform=transform
+        )
+        test_dataset = torchvision.datasets.QMNIST(
+            root="./data", train=False, download=True, transform=transform
+        )
+    elif dataset_name == "fashion-mnist":
+        transform = transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(10),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.2860, 0.2860, 0.2860],
+                    std=[0.3530, 0.3530, 0.3530],
+                ),
+            ]
+        )
+        train_dataset = torchvision.datasets.FashionMNIST(
+            root="./data", train=True, download=True, transform=transform
+        )
+        test_dataset = torchvision.datasets.FashionMNIST(
+            root="./data", train=False, download=True, transform=transform
+        )
+    else:
+        raise ValueError(
+            "Dataset not supported. Please choose 'cifar10', 'cifar100', 'qmnist' or 'fashion-mnist'."
+        )
+
+    # Split the training dataset into training and validation sets
+    num_train = len(train_dataset)
+    indices = list(range(num_train))
+    split = int(validation_split * num_train)
+    train_indices, val_indices = indices[split:], indices[:split]
+
+    train_sampler = torch.utils.data.sampler.SubsetRandomSampler(train_indices)
+    val_sampler = torch.utils.data.sampler.SubsetRandomSampler(val_indices)
+
+    # Create data loaders
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, sampler=train_sampler
+    )
+    val_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=val_sampler)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, val_loader, test_loader
 
 
 # JSON Files should be a dictionary, with the index being the current inference number, first = 0, second = 1 etc.
@@ -117,6 +223,7 @@ def trainModel(model, trainLoader, validLoader, testLoader):
     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.99)
 
     for e in range(epoch):
+        break
         start = time.time()
         model.train()
         running_loss = 0.0
@@ -165,6 +272,8 @@ def trainModel(model, trainLoader, validLoader, testLoader):
 
         # Update learning rate
         lr_scheduler.step()
+
+    return
 
     model.eval()
     with torch.no_grad():
@@ -223,7 +332,7 @@ def getAccuracy(model, testLoader):
     return getAccDataset(model, testLoader, "temp-results")[0][-1]
 
 
-def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
+def trainModelWithBranch(model, trainLoader, validLoader, testLoader, test):
     exitTracker = generation.ExitTracker(model, 100)
     exitTracker.saveAst()
     exitTracker.reloadable_model.reload(False)
@@ -232,7 +341,6 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader):
     )
 
     # Model now only contains full branch, get total accuracy
-    _, _, test = Cifar10Splits(1)
     accuracy = getAccuracy(model.getModel(), test)
     exitTracker.targetAccuracy = accuracy
     exitTracker.useNextExit()
