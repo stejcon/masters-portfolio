@@ -355,7 +355,7 @@ def trainModelWithBranch(model, trainLoader, validLoader, testLoader, test):
             testLoader,
         )
 
-        exitTracker.setCurrentExitCorrectly()
+        exitTracker.setCurrentExitCorrectly(test)
         exitTracker.reloadable_model.reload()
         exitTracker.useNextExit()
 
