@@ -1,19 +1,7 @@
 import helpers
 import torch
 import models
-from models import ResNet50QMNIST, ResNet50Cifar100, ResNet50Cifar10, ResNet50Fashion
-from models import (
-    ResNet101QMNIST,
-    ResNet101Cifar100,
-    ResNet101Cifar10,
-    ResNet101Fashion,
-)
-from models import (
-    ResNet152QMNIST,
-    ResNet152Cifar100,
-    ResNet152Cifar10,
-    ResNet152Fashion,
-)
+import importlib
 
 
 def main():
@@ -23,18 +11,18 @@ def main():
     resnet_sizes = [[3, 4, 6, 3], [3, 4, 23, 3], [3, 8, 36, 3]]
     datasets = ["cifar10", "cifar100", "qmnist", "fashion-mnist"]
     model_classes = [
-        ResNet50Cifar10,
-        ResNet50Cifar100,
-        ResNet50QMNIST,
-        ResNet50Fashion,
-        ResNet101Cifar10,
-        ResNet101Cifar100,
-        ResNet101QMNIST,
-        ResNet101Fashion,
-        ResNet152Cifar10,
-        ResNet152Cifar100,
-        ResNet152QMNIST,
-        ResNet152Fashion,
+        models.ResNet50Cifar10,
+        models.ResNet50Cifar100,
+        models.ResNet50QMNIST,
+        models.ResNet50Fashion,
+        models.ResNet101Cifar10,
+        models.ResNet101Cifar100,
+        models.ResNet101QMNIST,
+        models.ResNet101Fashion,
+        models.ResNet152Cifar10,
+        models.ResNet152Cifar100,
+        models.ResNet152QMNIST,
+        models.ResNet152Fashion,
     ]
 
     for i, (name, size) in enumerate(zip(resnet_names, resnet_sizes)):
@@ -45,6 +33,7 @@ def main():
             )
             _, _, test = helpers.get_custom_dataloaders(dataset, 1)
             model = helpers.ReloadableModel(
+                next(iter(trainLoader))[0].shape[1],
                 model_classes[i * len(resnet_names) + j],
                 models.Bottleneck,
                 size,
@@ -57,6 +46,21 @@ def main():
             helpers.generateJsonResults(
                 model.getModel(), f"resnet{name}-{dataset}", test
             )
+            importlib.reload(models)
+            model_classes = [
+                models.ResNet50Cifar10,
+                models.ResNet50Cifar100,
+                models.ResNet50QMNIST,
+                models.ResNet50Fashion,
+                models.ResNet101Cifar10,
+                models.ResNet101Cifar100,
+                models.ResNet101QMNIST,
+                models.ResNet101Fashion,
+                models.ResNet152Cifar10,
+                models.ResNet152Cifar100,
+                models.ResNet152QMNIST,
+                models.ResNet152Fashion,
+            ]
 
 
 if __name__ == "__main__":

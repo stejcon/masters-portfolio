@@ -123,10 +123,6 @@ def get_custom_dataloaders(dataset_name, batch_size=64, validation_split=0.1):
                 transforms.RandomRotation(10),
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.1308, 0.1308, 0.1308],
-                    std=[0.3088, 0.3088, 0.3088],
-                ),
             ]
         )
         train_dataset = torchvision.datasets.QMNIST(
@@ -143,10 +139,6 @@ def get_custom_dataloaders(dataset_name, batch_size=64, validation_split=0.1):
                 transforms.RandomRotation(10),
                 transforms.Resize((224, 224)),
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.2860, 0.2860, 0.2860],
-                    std=[0.3530, 0.3530, 0.3530],
-                ),
             ]
         )
         train_dataset = torchvision.datasets.FashionMNIST(
@@ -408,12 +400,13 @@ def createModelsFolder(name):
 
 
 class ReloadableModel:
-    def __init__(self, model_class, *args):
+    def __init__(self, dataset_channels, model_class, *args):
         self.model = model_class(*args)
         self.model.to(getDevice())
         self.model_class = model_class
         self.model_args = args
-        _ = self.model(torch.randn(1, 3, 224, 224))
+        self.dc = dataset_channels
+        _ = self.model(torch.randn(1, self.dc, 224, 224))
 
     def reload(self, grad=True):
         with tempfile.TemporaryFile() as file:
@@ -424,7 +417,7 @@ class ReloadableModel:
             reloaded_module = sys.modules[module_name]
             self.model_class = getattr(reloaded_module, self.model_class.__name__)
             self.model = self.model_class(*(self.model_args))
-            _ = self.model(torch.randn(1, 3, 224, 224))
+            _ = self.model(torch.randn(1, self.dc, 224, 224))
             saved_state_dict = torch.load(file)
             self.model.load_state_dict(saved_state_dict, strict=False)
             if grad:
