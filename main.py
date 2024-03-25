@@ -39,6 +39,7 @@ def main():
 
     for i, (name, size) in enumerate(zip(resnet_names, resnet_sizes)):
         for j, dataset in enumerate(datasets):
+            print(f"Doing {model_classes[i*len(resnet_names)+j]}")
             trainLoader, validLoader, testLoader = helpers.get_custom_dataloaders(
                 dataset
             )
@@ -52,8 +53,10 @@ def main():
             helpers.trainModelWithBranch(
                 model, trainLoader, validLoader, testLoader, test
             )
-            torch.save(model.getModel().state_dict(), f"models/resnet{name}-cifar10")
-            helpers.generateJsonResults(model.getModel(), f"resnet{name}-cifar10", test)
+            torch.save(model.getModel().state_dict(), f"models/resnet{name}-{dataset}")
+            helpers.generateJsonResults(
+                model.getModel(), f"resnet{name}-{dataset}", test
+            )
 
 
 if __name__ == "__main__":
