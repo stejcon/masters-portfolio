@@ -27,7 +27,11 @@ def main():
 
     for i, (name, size) in enumerate(zip(resnet_names, resnet_sizes)):
         for j, dataset in enumerate(datasets):
-            print(f"Doing {model_classes[i*len(resnet_names)+j]}")
+            print(
+                f"Doing {model_classes[i*len(resnet_names)+j]}, should be {name} with {dataset}"
+            )
+            if model_classes[i * len(resnet_names) + j] in []:
+                continue
             trainLoader, validLoader, testLoader = helpers.get_custom_dataloaders(
                 dataset
             )
