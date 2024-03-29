@@ -7,28 +7,20 @@ import importlib
 def main():
     helpers.createModelsFolder("models")
 
-    resnet_names = ["50", "101", "152"]
-    resnet_sizes = [[3, 4, 6, 3], [3, 4, 23, 3], [3, 8, 36, 3]]
+    resnet_names = ["34"]
+    resnet_sizes = [[3, 4, 6, 3]]
     datasets = ["cifar10", "cifar100", "qmnist", "fashion-mnist"]
     model_classes = [
-        models.ResNet50Cifar10,
-        models.ResNet50Cifar100,
-        models.ResNet50QMNIST,
-        models.ResNet50Fashion,
-        models.ResNet101Cifar10,
-        models.ResNet101Cifar100,
-        models.ResNet101QMNIST,
-        models.ResNet101Fashion,
-        models.ResNet152Cifar10,
-        models.ResNet152Cifar100,
-        models.ResNet152QMNIST,
-        models.ResNet152Fashion,
+        models.ResNet34Cifar10,
+        models.ResNet34Cifar100,
+        models.ResNet34QMNIST,
+        models.ResNet34Fashion,
     ]
 
     for i, (name, size) in enumerate(zip(resnet_names, resnet_sizes)):
         for j, dataset in enumerate(datasets):
             print(
-                f"Doing {model_classes[i*len(resnet_names)+j]}, should be {name} with {dataset}"
+                f"Doing {model_classes[i*len(resnet_names)+j]}, should be {name}/{size} with {dataset}"
             )
             if model_classes[i * len(resnet_names) + j] in []:
                 continue
@@ -39,7 +31,7 @@ def main():
             model = helpers.ReloadableModel(
                 next(iter(trainLoader))[0].shape[1],
                 model_classes[i * len(resnet_names) + j],
-                models.Bottleneck,
+                models.BasicBlock,
                 size,
                 len(trainLoader.dataset.classes),
             )
@@ -52,18 +44,10 @@ def main():
             )
             importlib.reload(models)
             model_classes = [
-                models.ResNet50Cifar10,
-                models.ResNet50Cifar100,
-                models.ResNet50QMNIST,
-                models.ResNet50Fashion,
-                models.ResNet101Cifar10,
-                models.ResNet101Cifar100,
-                models.ResNet101QMNIST,
-                models.ResNet101Fashion,
-                models.ResNet152Cifar10,
-                models.ResNet152Cifar100,
-                models.ResNet152QMNIST,
-                models.ResNet152Fashion,
+                models.ResNet34Cifar10,
+                models.ResNet34Cifar100,
+                models.ResNet34QMNIST,
+                models.ResNet34Fashion,
             ]
 
 
