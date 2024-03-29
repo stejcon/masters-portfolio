@@ -1648,7 +1648,7 @@ class ResNet34Fashion(nn.Module):
         return (0, x)
 
 
-class ResNet152Cifar10(nn.Module):
+class ResNet18Cifar10(nn.Module):
     def __init__(
         self,
         block,
@@ -1757,7 +1757,7 @@ class ResNet152Cifar10(nn.Module):
         return (0, x)
 
 
-class ResNet152Cifar100(nn.Module):
+class ResNet18Cifar100(nn.Module):
     def __init__(
         self,
         block,
@@ -1866,7 +1866,7 @@ class ResNet152Cifar100(nn.Module):
         return (0, x)
 
 
-class ResNet152QMNIST(nn.Module):
+class ResNet18QMNIST(nn.Module):
     def __init__(
         self,
         block,
@@ -1975,7 +1975,7 @@ class ResNet152QMNIST(nn.Module):
         return (0, x)
 
 
-class ResNet152Fashion(nn.Module):
+class ResNet18Fashion(nn.Module):
     def __init__(
         self,
         block,
