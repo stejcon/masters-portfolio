@@ -1,6 +1,7 @@
 import json
 import os
 from collections import defaultdict
+from tabulate import tabulate
 
 
 # Function to process JSON file
@@ -31,30 +32,38 @@ def process_json(file_path):
     total_correct = sum(stats["correct_count"] for stats in exit_stats.values())
     total_time_taken = sum(entry["time_taken"] for entry in data)
 
-    print(f"Statistics for file: {file_path}")
-    # Print statistics for each exit number
+    table = []
+    headers = [
+        "Exit Number",
+        "Entries",
+        "Percentage",
+        "Avg Entropy",
+        "Avg Time (ms)",
+        "Accuracy (%)",
+    ]
+    # Generate statistics for each exit number
     for exit_number, stats in exit_stats.items():
         avg_entropy = stats["total_entropy"] / stats["total_entries"]
         avg_time_taken = stats["total_time"] / stats["total_entries"]
-        accuracy = (
-            stats["correct_count"] / stats["total_entries"] * 100
-        )  # Accuracy in percentage
-        exit_percentage = (
-            stats["total_entries"] / total_entries * 100
-        )  # Percentage of total entries
-        print(f"Exit Number: {exit_number}")
-        print(f"Number of Entries: {stats['total_entries']} ({exit_percentage:.2f}%)")
-        print(f"Average Entropy: {avg_entropy}")
-        print(f"Average Time Taken: {avg_time_taken * 1000:.4f} milliseconds")
-        print(f"Accuracy: {accuracy:.2f}%")
-        print()
+        accuracy = stats["correct_count"] / stats["total_entries"] * 100
+        exit_percentage = stats["total_entries"] / total_entries * 100
 
-    # Calculate overall statistics
-    overall_avg_time_taken = (
-        total_time_taken / total_entries * 1000
-    )  # Convert to milliseconds
+        table.append(
+            [
+                exit_number,
+                stats["total_entries"],
+                f"{exit_percentage:.2f}%",
+                avg_entropy,
+                avg_time_taken * 1000,
+                f"{accuracy:.2f}%",
+            ]
+        )
 
+    overall_avg_time_taken = total_time_taken / total_entries * 1000
     overall_accuracy = total_correct / total_entries * 100
+
+    print(f"Statistics for file: {file_path}")
+    print(tabulate(table, headers=headers, tablefmt="grid"))
     print(f"Overall Accuracy: {overall_accuracy:.2f}%")
     print(f"Overall Average Time Taken: {overall_avg_time_taken:.4f} milliseconds")
     print()
