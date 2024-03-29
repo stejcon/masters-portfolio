@@ -8,13 +8,13 @@ def main():
     helpers.createModelsFolder("models")
 
     resnet_names = ["34"]
-    resnet_sizes = [[3, 4, 6, 3]]
+    resnet_sizes = [[2, 2, 2, 2]]
     datasets = ["cifar10", "cifar100", "qmnist", "fashion-mnist"]
     model_classes = [
-        models.ResNet34Cifar10,
-        models.ResNet34Cifar100,
-        models.ResNet34QMNIST,
-        models.ResNet34Fashion,
+        models.ResNet18Cifar10,
+        models.ResNet18Cifar100,
+        models.ResNet18QMNIST,
+        models.ResNet18Fashion,
     ]
 
     for i, (name, size) in enumerate(zip(resnet_names, resnet_sizes)):
@@ -44,10 +44,10 @@ def main():
             )
             importlib.reload(models)
             model_classes = [
-                models.ResNet34Cifar10,
-                models.ResNet34Cifar100,
-                models.ResNet34QMNIST,
-                models.ResNet34Fashion,
+                models.ResNet18Cifar10,
+                models.ResNet18Cifar100,
+                models.ResNet18QMNIST,
+                models.ResNet18Fashion,
             ]
 
 
