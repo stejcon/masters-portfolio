@@ -1,4 +1,12 @@
+= Adding An Early Exit
+To add an early exit to a model, there are a number of steps which would need to be followed.
++ The exits need to be generated in an abstract syntax tree or graph representing the original model
++ The model needs to be saved with its' new structure.
++ The exits then need to be trained
+
 = Compile-Time Solution
+A compile-time implementation of adding exits was the first approach analysed. As discussed in Appendix A, ONNX-MLIR is a compiler for models which can allow them to run on any LLVM-supported architecture. 
+
 - Talk about onnx
 - Talk about using onnx-mlir
 - tablegen could be used to add structure

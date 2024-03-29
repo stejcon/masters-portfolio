@@ -33,6 +33,8 @@ Appendix content follows...
 #set page(footer: align(right, "A-" + counter(page).display("1")))
 #counter(heading).update(0)
 #include "./litreview.typ"
+#pagebreak()
+#pagebreak()
 
 #set page(footer:"")
 #counter(page).update(0)
