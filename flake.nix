@@ -16,10 +16,10 @@
       config.cudaSupport = true;
     };
     typst-pkgs = import nixpkgs-typst {
-        inherit system;
+      inherit system;
     };
     matplotlib = pkgs.python3Packages.matplotlib.override {enableQt = true;};
-    pyEnv = pkgs.python3.withPackages (ps: with ps; [torchvision-bin onnx numpy pillow jupyter matplotlib ipython scipy pyqt5 tensorboard]);
+    pyEnv = pkgs.python3.withPackages (ps: with ps; [torchvision-bin onnx numpy pillow jupyter matplotlib ipython scipy pyqt5 tensorboard tabulate]);
   in {
     formatter.${system} = pkgs.alejandra;
     devShells.${system} = {
