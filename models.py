@@ -1702,6 +1702,13 @@ class ResNet18Cifar10(nn.Module):
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                     nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -1744,12 +1751,61 @@ class ResNet18Cifar10(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit1(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.737342455983162):
+            return (1, y)
         x = self.bn1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit2(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.7075554728507996):
+            return (2, y)
         x = self.relu(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit3(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.759670692384243):
+            return (3, y)
         x = self.maxpool(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit4(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.9537064528465271):
+            return (4, y)
         x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.8861846548318862):
+            return (5, y)
         x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.7517859798669815):
+            return (6, y)
         x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.5359396690130234):
+            return (7, y)
         x = self.layer4(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
@@ -1811,6 +1867,13 @@ class ResNet18Cifar100(nn.Module):
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                     nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -1853,12 +1916,61 @@ class ResNet18Cifar100(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit1(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.8942746818065643):
+            return (1, y)
         x = self.bn1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit2(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 2.3381236064434052):
+            return (2, y)
         x = self.relu(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit3(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 2.216015100479126):
+            return (3, y)
         x = self.maxpool(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit4(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 2.159404993057251):
+            return (4, y)
         x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 3.0452908778190615):
+            return (5, y)
         x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 3.435070233345032):
+            return (6, y)
         x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 4.093396515846252):
+            return (7, y)
         x = self.layer4(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
@@ -1920,6 +2032,13 @@ class ResNet18QMNIST(nn.Module):
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                     nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -1962,12 +2081,61 @@ class ResNet18QMNIST(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit1(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.7255890011787414):
+            return (1, y)
         x = self.bn1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit2(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.951309323310852):
+            return (2, y)
         x = self.relu(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit3(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.427485911846161):
+            return (3, y)
         x = self.maxpool(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit4(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.244315505027771):
+            return (4, y)
         x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.6917553043365479):
+            return (5, y)
         x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.4168278872966766):
+            return (6, y)
         x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.2836392819881439):
+            return (7, y)
         x = self.layer4(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
@@ -2029,6 +2197,13 @@ class ResNet18Fashion(nn.Module):
             for m in self.modules():
                 if isinstance(m, Bottleneck) and m.bn3.weight is not None:
                     nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
         norm_layer = self._norm_layer
@@ -2071,12 +2246,61 @@ class ResNet18Fashion(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit1(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.5241190099716186):
+            return (1, y)
         x = self.bn1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit2(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.0523463213443756):
+            return (2, y)
         x = self.relu(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit3(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.394913673400879):
+            return (3, y)
         x = self.maxpool(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit4(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.3401701635122298):
+            return (4, y)
         x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.279452022910118):
+            return (5, y)
         x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.7175035613775254):
+            return (6, y)
         x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.6668361924588682):
+            return (7, y)
         x = self.layer4(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
