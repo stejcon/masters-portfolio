@@ -26,42 +26,96 @@ After the exits are added, the model would then be compiled to a binary. However
 There is potential in this method to be useful due to its portability. However there were too many obvious issues that would need to be solved given the timeframe of the project. Utilising TableGen can be difficult with work with since debugging the model after running the compiler passes can lead to long output messages with little important information. Build times were concerning, as rebuild ONNX-MLIR on the available hardware took a significant amount of time, and the model would then need to be trained afterwards anyways. Attempting to correctly initialise layers would also take significant time away from testing the automatic insertion of layers as well. Due to this, a training-time approach was taken instead.
 
 = Training-Time Solution
-- PyTorch was chosen due to its popularity
-- Torchvision comes with prebuilt datasets and models that can be copied and changed easily
-- Began by attempting to implement early exits for resnet models with the cifar10 dataset. both are common in literature so make for good comparisons
+PyTorch was the obvious choice as a framework to implement this solution. It has a very structured method for creating models, meaning any AST manipulations created to mimic the compiler passes described above would be easier to create. It also comes with the torchvision library, which includes many implementations of popular models and wrappers around popular datasets to make training far easier. The documentation for PyTorch is also high quality meaning any issues could potentially be solved far quicker.
+
+To begin the implementation, it was chosen to use ResNet34 as the base model, trained on the CIFAR10 dataset. This combination has the benefit of both being relatively quick to train to the available hardward, taking approximately 1.5 hours to train the model for 20 epochs on a Nvidia 3070. The model was trained multiple time with varying hyperparameters to identify the hyperparameters which cause convergence the quickest, which proved to be:
+
+#figure(
+table(
+  columns: 2,
+  align: left,
+  table.header(
+    [*Parameter*], [*Value*],
+  ),
+  "Epochs",
+  "20",
+  "Learning Rate",
+  "0.01",
+  "Learning Rate Scheduler",
+  "Exponential, w/ 0.99",
+  "Loss",
+  "Cross Entropy Loss",
+  "Optimizer",
+  "Stochastic Gradient Descent",
+  "Weight Decay",
+  "0.001",
+  "Momentum",
+  "0.9"
+),
+caption: "Chosen Hyperparameters"
+)
 
 == Initial Implementation
 A single exit was added in a particular location in the ResNet `forward()` function. This was done to allow testing the addition and training of an AST based exit before adding the complexity of an algorithm to place useful early exits. The exits were created by compiling a list of AST nodes composed of the AST from the `forward()` function of the model, and the AST corresponding to the following code:
 
 ```python
 y = self.avgpool(x)
-y = y.view(x.size(), -1)
-y = torch.nn.Linear(, self.num_classes)
+y = y.view(x.size(0), -1)
+y = torch.nn.Linear(y.size(1), self.num_classes)(y)
 y = torch.nn.functional(y, dim=1)
 entropy = -torch.sum(y*torch.log2(y+1e-20), dim=1)
 if (entropy < 0.5):
     return (1,x)
 ```
 
-- Started by compiling to bytecode then replacing forward function
-- The exit architecture used was based on the actual exit of a resnet model, and had a pooling layer and a fully connected layer, comparable to what the other masters project did
-- Used ast tree manipulation to generate the exists, and then compiled and replaced
-- This meant it was difficult to see exactly how exits were being structures and placed, and also made it hard to see if thresholds were being updated
-- Generating an exit needed the dimensions of the fully connected layer to be calculated, was just taken from the output of the previous instruction
-- An exit tracker class was used to keep track of the original ast of the forward function and the current ast, to allow the ast to be reset if needed
-- Exits were added individually, then trained, then the next added
-- The threshold was set by getting the entropy that would make the exit be equally as accurate as the final dataset
-- This seemed like the most obvious route for allowing a searching algorithm, but tracking where the exits were became difficult
-- Instead, all exits were placed in at the beginning to simplify the logic while still trying to get the exits working
+This structure was based on the pooling block as described in @earlyexitmasters and the normal exit of a ResNet model as described in @ResNet. The value of 0.5 for the entropy threshold was taken from @BranchyNet were it was used as a default threshold before more suffisticated approachs were presented.
+
+The ExitTracker class was used to track the original and current state of the `forward()` function, and would then override the `forward()` function dynamically. The `exitTransformer` added the above exit structure approximately half way through the ResNet forward graph. The current forward ast was then compiled, and replaced the bound forward function for the class of the stored model, which in this case was ResNet. Replacing the function required accessing the global variables, finding the correct class, and then setting forward function to the updated, compiled forward function. Confusingly, `__get__` is used in this context to bind the new forward function to the model class, and the `forward()` function then needs to be set to the bound updated function. This is an artifact of Python's descriptor API.
+
+```python
+class ExitTracker:
+    def __init__(self, model):
+        self.first_transform_complete = False
+        self.model = model
+        self.original_forward_ast = getAst(self.model.forward)
+        self.current_forward_ast = getAst(self.model.forward)
+
+    def transformFunction(self):
+        exitTransformer = AddExitTransformer()
+        if not self.first_transform_complete:
+            self.current_forward_ast = exitTransformer.visit(self.original_forward_ast)
+            self.first_transform_complete = True
+        else:
+            self.current_forward_ast = exitTransformer.visit(self.current_forward_ast)
+        ast.fix_missing_locations(self.current_forward_ast)
+        code_object = compile(self.current_forward_ast, '', 'exec')
+        exec(code_object, globals())
+        bound_method = globals()["forward"].__get__(self.model, self.model.__class__)
+        setattr(self.model, 'forward', bound_method)
+```
+
+The `exitTransformer` used an AST visitor which passes over the original AST, and performs an operation on every `Assign` node. To specifically place the exit to ensure training would work, a series of checks were done to check if the current assign was for `layer1`, and if this is true, to append the exit.
+
+```python
+class AddExitTransformer(ast.NodeTransformer):
+    def visit_Assign(self, node):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "layer1":
+            return [node] + exitAst
+        return node
+```
+
+To allow the exit to train correctly, the threshold was initially set to 3,000,000, as to have such a high value that no inference would result in an entropy above this. The exit was then trained using the same hyperparameters as the final exit. After this, the entropy was changed to 0.5 by recompiling the forward function again. This allowed the exit to train, but a somewhat correct entropy value.
 
 == Issues with Initial Implementation
-- Ran into issue where exits werent being trained correctly, which stemmed from multiple distinct issues with the approach.
- - The base model was not frozen, meaning the early exit was effecting the early layers to the point where the final exit was effectively guessing
- - The exits layers weren't having weights updated since they weren't initialised in the \_\_init\_\_ function, this meant both the init function and the forward function had to be replaced
- - Replacing the init function meant a model would need to be reinitialised during training
- - reinitialisation meant some weights were reset
- - Replaced functions weren't saved as couldn't correctly load function from .pyc files, doesn't appear to be a technical reason why but proved more difficult than it was worth in the given time
- - Exits couldn't be removed as trying to identify what parts of the current ast were exits was difficult
+Once the exit was trained, the performance of the model dramatically fell, with both the final exit and early exit having an accuracy of approximately 10%. This occured irrespective of the chosen hyperparameters. This singular issue stemmed from a multitude of issues with the above naive approach.
+
++ The layers for the early exit were identical to when they were initialised, indicating that the backwards propogation was not updating these layers.
++ The layers for the backbone model were being updated as they were not frozen, effecting the final exit's accuracy as it could no longer extract the needed features.
++ There was no way to save the forward function, as attempting to save and load from a `.pyc` file caused many runtime errors which proved too difficult to debug given the time limitations of the project.
++ As there was no easy way to visualise the current state of the forward function once it was compiled, it was difficult to confirm whether the entropy threshold was correctly reset after the second compilation.
++ There was no method to remove an exit after it was added without completely resetting the forward function, which would result in every exit being permanent in the forward graph, which is impractical once multiple exits need to be added.
+
+The following five major overhauls to the implementation were made to address all of these shortcomings.
 
 === Unparse Instead Of Compile
 - This required multiple extra classes
@@ -81,6 +135,15 @@ if (entropy < 0.5):
 - This is because layers declared in the forward function are not part of the named parameters list in the pytorch model, which are the only parameters the autograd engine will update
 - LazyLayers were used when creating the instructions in the init function as it was easier than calculating dimensions, the model needs to be run with dummy data once initialised for the dimensions to be calculated though
 - This has the added benefit of the approach being more expandable by easily allowing more complicated instructions to be used in the exit architecture if needed, such as a Conv2D
+
+=== Setting Threshold Levels
+- Needed to edit the threshold for each exit
+- Using the test data after a full train of an exit, determine the entropy level where the overall accuracy of the exit would match the final exit
+- Set that threshold
+- For an exit to be trained, all training data must exit through the if statement
+- This meant if an exit was enabled, the data would never go through the rest of the forward graph
+- To solve this, train from bottom up
+- Would require a more sophisticated approach if a searching algorithm is used, as exits would need to be temporarily disabled but keep track of the correct threshold to reenable
 
 === Pruning Bad Exits
 - What defines a bad exit is unclear, and can be defined multiple ways
