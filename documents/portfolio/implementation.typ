@@ -1,20 +1,29 @@
+#set page(paper: "a4", margin: (x: 41.5pt, top: 80.51pt, bottom: 89.51pt))
+#counter(page).update(0)
+#align(center, text(weight: "bold", size: 24pt, "Appendix B"))
+
+#align(center, text(weight: "bold", size: 24pt, "Design and Implementation"))
+
+Appendix content follows...
+#pagebreak()
+#set page(footer: align(right, "B-" + counter(page).display("1")))
+#counter(heading).update(0)
 = Adding An Early Exit
 To add an early exit to a model, there are a number of steps which would need to be followed.
 + The exits need to be generated in an abstract syntax tree or graph representing the original model
 + The model needs to be saved with its' new structure.
 + The exits then need to be trained
 
-= Compile-Time Solution
-A compile-time implementation of adding exits was the first approach analysed. As discussed in Appendix A, ONNX-MLIR is a compiler for models which can allow them to run on any LLVM-supported architecture. 
+The original model with no exits (the backbone model) can be either trained or untrained when adding the structure of the exits, what is important is that the backbone model is trained before any of the exits. Once the backbone model is trained, the exits can then be trained by knowledge distillation @knowledgedistillation, a weighted sum of losses @BranchyNet, or individual losses @individualtraining. Both training-time and compile-time solutions would need to follow this general approach.
 
-- Talk about onnx
-- Talk about using onnx-mlir
-- tablegen could be used to add structure
-- structures could change based on how far into the graph the exit is
-- There would be no trained weights stored, although they could be initilised
-- Once trained, they would need to be fine-tuned using the final exit as a teacher and the branches as students FIND A REFERENCE FOR THIS
-- Much more difficult to work with in the given time, difficult to load and train an onnx model as most frameworks only support exporting and not importing
-- Would be beneficial in the future as it is more portable since any framework can export as onnx
+= Compile-Time Solution
+A compile-time implementation for the automatic addition of exits was the first approach analysed. As discussed in Appendix A, ONNX-MLIR is a compiler for models which can allow them to run on any LLVM-supported architecture, which is preferable to a framework-specific approach. It exposes multiple passes over an onnx model, but the most useful for editting the model itself is the first pass, `ONNXOpTransformPass`. This also for manipulation of the forward graph of the model for operations such as constant propogation and shape inference. These operations use rules written in LLVM's TableGen domain-specific language. To add the exit structures to the model, TableGen rules could be used to identify blocks within a CNN, as blocks generally contain a convolution, an averaging operation, and possibly another non-linear layer such as the rectifed linear unit (ReLU).
+
+Once the blocks are identified, an exit would need to be generated in the `onnx` MLIR dialect. This becomes tricky, as literature hasn't found a good method for structuring exits, other than the earlier the exit the more layers should be included. Having deeper exits is even disputed by @optimalbranchplacement@earlyexitmasters. To being, all exits will be structured as an averaging layer, followed by a fully connected layer. This matches the pooling blocks laid out by @earlyexitmasters as well as the exits placed in ResNet models @ResNet. These added blocks would not be trained at this point, so all weights would need to be initialised. Methods for initialising layers has been discussed for years in literature, with many different initialisation schemes being used. Most major Python frameworks use Kaiming initialisation @kaiming as a default, so it is likely that this should be used on the exits, but it is still an open question.
+
+After the exits are added, the model would then be compiled to a binary. However, if the model is in binary form, it difficult to train the exits. The onnx runtime library can be used to load the model into memory, but then training is difficult since to train, there needs to exist a PyTorch implementation of the onnx model. Some layers in the model also have parameters that need to be tracked during training, like batch normalisation. So if the model had been trained and then saved, these parameters are lost making accurately training take much longer. Compiling also isn't normally done until a model is being deployed, so this means edge devices would need enough resources to accurately train the exits, but edge devices are typically resource constrained making this process infeasible.
+
+There is potential in this method to be useful due to its portability. However there were too many obvious issues that would need to be solved given the timeframe of the project. Utilising TableGen can be difficult with work with since debugging the model after running the compiler passes can lead to long output messages with little important information. Build times were concerning, as rebuild ONNX-MLIR on the available hardware took a significant amount of time, and the model would then need to be trained afterwards anyways. Attempting to correctly initialise layers would also take significant time away from testing the automatic insertion of layers as well. Due to this, a training-time approach was taken instead.
 
 = Training-Time Solution
 - PyTorch was chosen due to its popularity
@@ -22,6 +31,18 @@ A compile-time implementation of adding exits was the first approach analysed. A
 - Began by attempting to implement early exits for resnet models with the cifar10 dataset. both are common in literature so make for good comparisons
 
 == Initial Implementation
+A single exit was added in a particular location in the ResNet `forward()` function. This was done to allow testing the addition and training of an AST based exit before adding the complexity of an algorithm to place useful early exits. The exits were created by compiling a list of AST nodes composed of the AST from the `forward()` function of the model, and the AST corresponding to the following code:
+
+```python
+y = self.avgpool(x)
+y = y.view(x.size(), -1)
+y = torch.nn.Linear(, self.num_classes)
+y = torch.nn.functional(y, dim=1)
+entropy = -torch.sum(y*torch.log2(y+1e-20), dim=1)
+if (entropy < 0.5):
+    return (1,x)
+```
+
 - Started by compiling to bytecode then replacing forward function
 - The exit architecture used was based on the actual exit of a resnet model, and had a pooling layer and a fully connected layer, comparable to what the other masters project did
 - Used ast tree manipulation to generate the exists, and then compiled and replaced
@@ -78,3 +99,5 @@ A compile-time implementation of adding exits was the first approach analysed. A
 - No work had been presented on the infrastructure that would be needed for automatically generating exits
 - All of the elements of the code that have potential for interesting future work are also very modular, so it will be easy to expand the implementation to try different search methods and different exit architectures
 - None of the code is particularly pytorch specific, and much of the code can be quickly adapted to other frameworks
+
+#bibliography("refs.bib")
