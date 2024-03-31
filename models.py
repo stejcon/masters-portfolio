@@ -108,141 +108,6 @@ class Bottleneck(nn.Module):
         return out
 
 
-class BaseResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=10):
-        super().__init__()
-        self.inplanes = 64
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-        )
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer0 = self._make_layer(block, 64, layers[0], stride=1)
-        self.layer1 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer2 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer3 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512, num_classes)
-        self.num_classes = num_classes
-
-    def _make_layer(self, block, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(planes),
-            )
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
-        return nn.Sequential(*layers)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.maxpool(x)
-        x = self.layer0(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return (0, x)
-
-
-class StrippedBiggerExitResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=10):
-        super().__init__()
-        self.inplanes = 64
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-        )
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer0 = self._make_layer(block, 64, layers[0], stride=1)
-        self.layer1 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer2 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer3 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512, num_classes)
-        self.num_classes = num_classes
-
-    def _make_layer(self, block, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(planes),
-            )
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
-        return nn.Sequential(*layers)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.maxpool(x)
-        x = self.layer0(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return (0, x)
-
-
-class BiggerExitResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=10):
-        super().__init__()
-        self.inplanes = 64
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-        )
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer0 = self._make_layer(block, 64, layers[0], stride=1)
-        self.layer1 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer2 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer3 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512, num_classes)
-        self.num_classes = num_classes
-
-    def _make_layer(self, block, planes, blocks, stride=1):
-        downsample = None
-        if stride != 1 or self.inplanes != planes:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(planes),
-            )
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes
-        for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
-        return nn.Sequential(*layers)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.maxpool(x)
-        x = self.layer0(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return (0, x)
-
-
 class ResNet(nn.Module):
     def __init__(
         self,
@@ -254,11 +119,13 @@ class ResNet(nn.Module):
         width_per_group=64,
         replace_stride_with_dilation=None,
         norm_layer=None,
+        channels=3,
     ):
         super().__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
+        self.channels = channels
         self.inplanes = 64
         self.dilation = 1
         if replace_stride_with_dilation is None:
@@ -270,7 +137,7 @@ class ResNet(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
         self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
@@ -2324,70 +2191,1577 @@ class ResNet18Fashion(nn.Module):
         return (0, x)
 
 
-class HalfResNet(ResNet):
-    def __init__(self, block, layers, num_classes=10):
-        super(HalfResNet, self).__init__(block, layers, num_classes=10)
-        self.linear = nn.Linear(61952, num_classes)
-        self.num_classes = num_classes
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.maxpool(x)
-        x = self.layer0(x)
-        x = self.layer1(x)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.linear(x)
-        return (0, x)
-
-
-class BranchedResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=10):
-        super(BranchedResNet, self).__init__()
+class ResNet50Cifar10Stripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self._norm_layer = norm_layer
+        self.channels = channels
         self.inplanes = 64
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer0 = self._make_layer(block, 64, layers[0], stride=1)
-        self.layer1 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer2 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer3 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc = nn.Linear(512, num_classes)
-        self.num_classes = num_classes
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
 
-    def _make_layer(self, block, planes, blocks, stride=1):
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
         downsample = None
-        if stride != 1 or self.inplanes != planes:
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes, kernel_size=1, stride=stride),
-                nn.BatchNorm2d(planes),
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
             )
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
         return nn.Sequential(*layers)
 
     def forward(self, x):
         x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
         x = self.maxpool(x)
-        x = self.layer0(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.8887244826555253):
+            return (6, y)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.1911989336321132):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet50Cifar100Stripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 2.96774370522704):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet50QMNISTStripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
         x = self.layer1(x)
         y = self.avgpool(x)
         y = y.view(x.size(0), -1)
-        y = nn.Linear(y.size(1), self.num_classes)(y)
-        y = torch.nn.functional.softmax(y, dim=1)
-        entropy = -torch.sum(y * torch.log2(y + 1e-20), dim=1)
-        if torch.all(entropy < 300):
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.2198189795017242):
+            return (5, y)
+        x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.0768353688716887):
+            return (6, y)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 0.9760104127554223):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet50FashionStripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit1(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.3404903745651247):
             return (1, y)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.2746383741497993):
+            return (7, y)
+        x = self.layer4(x)
         x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet34Cifar10Stripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.054986223578453):
+            return (6, y)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.4566168983653187):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet34Cifar100Stripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 3.2448585653305053):
+            return (6, y)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 3.636146520376206):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet34QMNISTStripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.5985933113098145):
+            return (5, y)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.2204003448039293):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet34FashionStripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit1(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.4349217557907106):
+            return (1, y)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.458837914466858):
+            return (5, y)
+        x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.3115022438764572):
+            return (6, y)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.5609679216286168):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet18Cifar10Stripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.5359396690130234):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet18Cifar100Stripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 4.093396515846252):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet18QMNISTStripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit5(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.6917553043365479):
+            return (5, y)
+        x = self.layer2(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit6(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.4168278872966766):
+            return (6, y)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        return (0, x)
+
+
+class ResNet18FashionStripped(nn.Module):
+    def __init__(
+        self,
+        block,
+        layers,
+        num_classes=1000,
+        zero_init_residual=False,
+        groups=1,
+        width_per_group=64,
+        replace_stride_with_dilation=None,
+        norm_layer=None,
+        channels=3,
+    ):
+        super().__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        self.channels = channels
+        self._norm_layer = norm_layer
+        self.inplanes = 64
+        self.dilation = 1
+        if replace_stride_with_dilation is None:
+            replace_stride_with_dilation = [False, False, False]
+        if len(replace_stride_with_dilation) != 3:
+            raise ValueError(
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
+            )
+        self.groups = groups
+        self.base_width = width_per_group
+        self.conv1 = nn.Conv2d(
+            self.channels, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
+        self.bn1 = norm_layer(self.inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        if zero_init_residual:
+            for m in self.modules():
+                if isinstance(m, Bottleneck) and m.bn3.weight is not None:
+                    nn.init.constant_(m.bn3.weight, 0)
+        self.exit1 = torch.nn.LazyLinear(num_classes)
+        self.exit2 = torch.nn.LazyLinear(num_classes)
+        self.exit3 = torch.nn.LazyLinear(num_classes)
+        self.exit4 = torch.nn.LazyLinear(num_classes)
+        self.exit5 = torch.nn.LazyLinear(num_classes)
+        self.exit6 = torch.nn.LazyLinear(num_classes)
+        self.exit7 = torch.nn.LazyLinear(num_classes)
+
+    def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        norm_layer = self._norm_layer
+        downsample = None
+        previous_dilation = self.dilation
+        if dilate:
+            self.dilation *= stride
+            stride = 1
+        if stride != 1 or self.inplanes != planes * block.expansion:
+            downsample = nn.Sequential(
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
+            )
+        layers = []
+        layers.append(
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+            )
+        )
+        self.inplanes = planes * block.expansion
+        for _ in range(1, blocks):
+            layers.append(
+                block(
+                    self.inplanes,
+                    planes,
+                    groups=self.groups,
+                    base_width=self.base_width,
+                    dilation=self.dilation,
+                    norm_layer=norm_layer,
+                )
+            )
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        y = self.avgpool(x)
+        y = y.view(x.size(0), -1)
+        y = self.exit7(y)
+        pk = F.softmax(y, dim=1)
+        entr = -torch.sum(pk * torch.log(pk + 1e-20))
+        if torch.all(entr < 1.6668361924588682):
+            return (7, y)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
         x = self.fc(x)
         return (0, x)
