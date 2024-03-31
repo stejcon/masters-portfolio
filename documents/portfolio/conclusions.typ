@@ -44,5 +44,7 @@
 - Use NAS to generate the exit architecture
 - Use metrics to "search" for exits
 
+Can i reference @b1 here?
+
 #heading(numbering: none, "References")
 #section-bib()
