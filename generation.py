@@ -178,11 +178,6 @@ class ExitTracker:
         self.ff_new_node_list[self.current_exit].setThreshold(300000)
         self.saveAst()
 
-    # For each EarlyExit
-    # If threshold is below 0.1 (arbitrary rn, should be based on % of dataset)
-    # Remove exit from list
-    # Remove exit layers from init
-    # Renumber every exit
     def removeUnneededExits(self):
         x = []
         for node in self.ff_new_node_list:

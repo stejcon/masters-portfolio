@@ -1,13 +1,39 @@
-// #set page(paper: "a4", margin: (x: 41.5pt, top: 80.51pt, bottom: 89.51pt))
-// #counter(page).update(0)
-// #align(center, text(weight: "bold", size: 24pt, "Appendix A"))
-// 
-// #align(center, text(weight: "bold", size: 24pt, "Literature Review"))
-// 
-// Appendix content follows...
-// #pagebreak()
-// #set page(footer: align(right, "A-" + counter(page).display("1")))
-// #counter(heading).update(0)
+#let section-refs = state("section-refs", ())
+
+// add bibliography references to the current section's state
+#show ref: it => {
+  if it.element != none {
+    // citing a document element like a figure, not a bib key
+    // so don't update refs
+    it
+    return
+  }
+  section-refs.update(old => {
+    if it.target not in old {
+      old.push(it.target)
+    }
+    old
+  })
+  locate(loc => {
+    let idx = section-refs.at(loc).position(el => el == it.target)
+    "[" + str(idx + 1) + "]"
+  })
+}
+
+// print the "per-section" bibliography
+#let section-bib() = locate(loc => {
+  let ref-counter = counter("section-refs")
+  ref-counter.update(1)
+  show regex("^\[(\d+)\]\s"): it => [
+    [#ref-counter.display()]
+  ]
+  for target in section-refs.at(loc) {
+    block(cite(target, form: "full"))
+    ref-counter.step()
+  }
+  section-refs.update(())
+})
+#set heading(offset: 1)
 = Neural Networks
 Deep convolutional neural networks (CNNs) are neural networks containing many convolutional layers, and they are commonly used in tasks such as image classification and object identification. The convolutional layers act as filters which can extract certain features from an image. A simple example of this is a convolution which identifies where in an image any horizontal lines are located. The exact filters are learned by the network during the training on a given dataset. One of the state-of-the-art CNNs is ResNet, which stands for Residual Network @ResNet. A ResNet is a type of CNN that avoids a common issue with deep neural networks called the vanishing gradient problem (VGP). The VGP is when the gradient, which is a measure of how the layers should change to lower the overall error of the model, becomes too small to cause a meaningful update to the earlier layers in a network. This is done by using a "skip connection" where the input to a block of layers is also added to it output. This gives the model an additional, shorter path to update the earlier layers, as shown in @resnetskipconnection. The issue with deep neural networks like ResNet is the resource requirements to run the models, with ResNet152 requiring 11.3 giga floating point operations per second (GFLOPS) even though not all inputs require the full model to run before the model has converged on an output.
 
@@ -66,4 +92,5 @@ Early exiting is also useful for moving towards edge computing. As neural networ
 
 Split computing could benefit from the automatic addition of exits as well. Every exit which can be trained well is a potential exit point, making it easier to split a model after every early exit. It is then easier to have multiple splits, with different edge devices running a different number of subsets depending on their available resources.
 
-// #bibliography("refs.bib")
+#heading(numbering: none, "References")
+#section-bib()

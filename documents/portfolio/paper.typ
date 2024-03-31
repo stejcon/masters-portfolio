@@ -1,3 +1,44 @@
+#let section-refs = state("section-refs", ())
+
+// add bibliography references to the current section's state
+#show ref: it => {
+  if it.element != none {
+    // citing a document element like a figure, not a bib key
+    // so don't update refs
+    it
+    return
+  }
+  section-refs.update(old => {
+    if it.target not in old {
+      old.push(it.target)
+    }
+    old
+  })
+  locate(loc => {
+    let idx = section-refs.at(loc).position(el => el == it.target)
+    "[" + str(idx + 1) + "]"
+  })
+}
+
+// print the "per-section" bibliography
+#let section-bib() = locate(loc => {
+  let ref-counter = counter("section-refs")
+  ref-counter.update(1)
+  show regex("^\[(\d+)\]\s"): it => [
+    [#ref-counter.display()]
+  ]
+  for target in section-refs.at(loc) {
+    block(cite(target, form: "full"))
+    ref-counter.step()
+  }
+})
+
+// clear the previously stored references every time a level 1 heading
+// is created.
+#show heading.where(level: 1): it => {
+  section-refs.update(())
+  it
+}
 // Workaround for the lack of an `std` scope.
 #let std-bibliography = bibliography
 
@@ -172,7 +213,7 @@
   // Display bibliography.
   if bibliography != none {
     show std-bibliography: set text(8pt)
-    set std-bibliography(title: text(10pt)[References], style: "ieee")
+    set std-bibliography(title: text(12pt)[References], style: "ieee")
     bibliography
   }
 }
@@ -190,7 +231,8 @@
   ),
   paper-size: "a4",
   index-terms: (),
-  bibliography: bibliography("refs.bib"),
+  bibliography: none,
+  // bibliography: bibliography("refs.bib"),
 )
 
 = Introduction
@@ -220,3 +262,6 @@ Early exiting is also useful for moving towards edge computing. As neural networ
 = Analysis
 
 = Conclusions
+
+#heading(numbering: none, "References")
+#section-bib()

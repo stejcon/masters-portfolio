@@ -1,16 +1,53 @@
-#set page(paper: "a4", margin: (x: 41.5pt, top: 80.51pt, bottom: 89.51pt))
-#counter(page).update(0)
-#align(center, text(weight: "bold", size: 24pt, "Appendix B"))
+// #set page(paper: "a4", margin: (x: 41.5pt, top: 80.51pt, bottom: 89.51pt))
+// #counter(page).update(0)
+// #align(center, text(weight: "bold", size: 24pt, "Appendix B"))
+// 
+// #align(center, text(weight: "bold", size: 24pt, "Design and Implementation"))
+// 
+// Appendix content follows...
+// #pagebreak()
+// #set page(footer: align(right, "B-" + counter(page).display("1")))
+// #counter(heading).update(0)
+#set heading(offset: 1)
+#let section-refs = state("section-refs", ())
 
-#align(center, text(weight: "bold", size: 24pt, "Design and Implementation"))
+// add bibliography references to the current section's state
+#show ref: it => {
+  if it.element != none {
+    // citing a document element like a figure, not a bib key
+    // so don't update refs
+    it
+    return
+  }
+  section-refs.update(old => {
+    if it.target not in old {
+      old.push(it.target)
+    }
+    old
+  })
+  locate(loc => {
+    let idx = section-refs.at(loc).position(el => el == it.target)
+    "[" + str(idx + 1) + "]"
+  })
+}
 
-Appendix content follows...
-#pagebreak()
-#set page(footer: align(right, "B-" + counter(page).display("1")))
-#counter(heading).update(0)
+// print the "per-section" bibliography
+#let section-bib() = locate(loc => {
+  let ref-counter = counter("section-refs")
+  ref-counter.update(1)
+  show regex("^\[(\d+)\]\s"): it => [
+    [#ref-counter.display()]
+  ]
+  for target in section-refs.at(loc) {
+    block(cite(target, form: "full"))
+    ref-counter.step()
+  }
+  section-refs.update(())
+})
+
 = Adding An Early Exit
 To add an early exit to a model, there are a number of steps which would need to be followed.
-+ The exits need to be generated in an abstract syntax tree or graph representing the original model
++ The exits need to be generated in an abstract syntax tree (AST) or graph representing the original model
 + The model needs to be saved with its' new structure.
 + The exits then need to be trained
 
@@ -28,7 +65,7 @@ There is potential in this method to be useful due to its portability. However t
 = Training-Time Solution
 PyTorch was the obvious choice as a framework to implement this solution. It has a very structured method for creating models, meaning any AST manipulations created to mimic the compiler passes described above would be easier to create. It also comes with the torchvision library, which includes many implementations of popular models and wrappers around popular datasets to make training far easier. The documentation for PyTorch is also high quality meaning any issues could potentially be solved far quicker.
 
-To begin the implementation, it was chosen to use ResNet34 as the base model, trained on the CIFAR10 dataset. This combination has the benefit of both being relatively quick to train to the available hardward, taking approximately 1.5 hours to train the model for 20 epochs on a Nvidia 3070. The model was trained multiple time with varying hyperparameters to identify the hyperparameters which cause convergence the quickest, which proved to be:
+To begin the implementation, it was chosen to use ResNet34 as the base model, trained on the CIFAR10 dataset. This combination has the benefit of both being relatively quick to train to the available hardward, taking approximately 1.5 hours to train the model for 20 epochs on a Nvidia 3070. The implementation of ResNet34 was taken from the torchvision library included in PyTorch. The model was trained multiple time with varying hyperparameters to identify the hyperparameters which cause convergence the quickest, which proved to be:
 
 #figure(
 table(
@@ -58,6 +95,7 @@ caption: "Chosen Hyperparameters"
 == Initial Implementation
 A single exit was added in a particular location in the ResNet `forward()` function. This was done to allow testing the addition and training of an AST based exit before adding the complexity of an algorithm to place useful early exits. The exits were created by compiling a list of AST nodes composed of the AST from the `forward()` function of the model, and the AST corresponding to the following code:
 
+#figure(
 ```python
 y = self.avgpool(x)
 y = y.view(x.size(0), -1)
@@ -66,11 +104,12 @@ y = torch.nn.functional(y, dim=1)
 entropy = -torch.sum(y*torch.log2(y+1e-20), dim=1)
 if (entropy < 0.5):
     return (1,x)
-```
+```,
+caption: "Equivalent code to exit AST") <exitcode>
 
-This structure was based on the pooling block as described in @earlyexitmasters and the normal exit of a ResNet model as described in @ResNet. The value of 0.5 for the entropy threshold was taken from @BranchyNet were it was used as a default threshold before more suffisticated approachs were presented.
+This structure was based on the pooling block as described in @earlyexitmasters and the normal exit of a ResNet model as described in @ResNet. The value of 0.5 for the entropy threshold was taken from @BranchyNet were it was used as a default threshold before more suffisticated approachs were presented. The return for the exit, as well as all exits for this implementation, also return an exit ID, also referred to as a return ID in the implementation, to indicate what exit was used. 0 is used to indicate the original backbone model, and any other positive integer indicates which exit was used, with a higher number indicating a deeper exit. This would not be strictly needed in a production-ready implementation. However, to compare how often each exit is used for the purposes of testing, it is important to have a return ID.
 
-The ExitTracker class was used to track the original and current state of the `forward()` function, and would then override the `forward()` function dynamically. The `exitTransformer` added the above exit structure approximately half way through the ResNet forward graph. The current forward ast was then compiled, and replaced the bound forward function for the class of the stored model, which in this case was ResNet. Replacing the function required accessing the global variables, finding the correct class, and then setting forward function to the updated, compiled forward function. Confusingly, `__get__` is used in this context to bind the new forward function to the model class, and the `forward()` function then needs to be set to the bound updated function. This is an artifact of Python's descriptor API.
+The ExitTracker class was used to track the original and current state of the `forward()` function, and would then override the `forward()` function dynamically. The `exitTransformer` added the above exit structure approximately half way through the ResNet forward graph. The current forward AST was then compiled, and replaced the bound `forward` function for the class of the stored model, which in this case was ResNet. Replacing the function required accessing the global variables, finding the correct class, and then setting `forward` function to the updated, compiled `forward` function. Confusingly, `__get__` is used in this context to bind the new `forward` function to the model class, and the `forward()` function then needs to be set to the bound updated function. This is an artifact of Python's descriptor API.
 
 ```python
 class ExitTracker:
@@ -104,39 +143,60 @@ class AddExitTransformer(ast.NodeTransformer):
         return node
 ```
 
-To allow the exit to train correctly, the threshold was initially set to 3,000,000, as to have such a high value that no inference would result in an entropy above this. The exit was then trained using the same hyperparameters as the final exit. After this, the entropy was changed to 0.5 by recompiling the forward function again. This allowed the exit to train, but a somewhat correct entropy value.
+To allow the exit to train correctly, the threshold was initially set to 3,000,000, as to have such a high value that no inference would result in an entropy above this. The exit was then trained using the same hyperparameters as the final exit. After this, the entropy was changed to 0.5 by recompiling the `forward` function again. This allowed the exit to train, but it would have somewhat incorrect entropy threshold.
 
 == Issues with Initial Implementation
 Once the exit was trained, the performance of the model dramatically fell, with both the final exit and early exit having an accuracy of approximately 10%. This occured irrespective of the chosen hyperparameters. This singular issue stemmed from a multitude of issues with the above naive approach.
 
 + The layers for the early exit were identical to when they were initialised, indicating that the backwards propogation was not updating these layers.
 + The layers for the backbone model were being updated as they were not frozen, effecting the final exit's accuracy as it could no longer extract the needed features.
-+ There was no way to save the forward function, as attempting to save and load from a `.pyc` file caused many runtime errors which proved too difficult to debug given the time limitations of the project.
-+ As there was no easy way to visualise the current state of the forward function once it was compiled, it was difficult to confirm whether the entropy threshold was correctly reset after the second compilation.
-+ There was no method to remove an exit after it was added without completely resetting the forward function, which would result in every exit being permanent in the forward graph, which is impractical once multiple exits need to be added.
++ There was no way to save the `forward` function, as attempting to save and load from a `.pyc` file caused many runtime errors which proved too difficult to debug given the time limitations of the project.
++ As there was no easy way to visualise the current state of the `forward` function once it was compiled, it was difficult to confirm whether the entropy threshold was correctly reset after the second compilation.
++ There was no method to remove an exit after it was added without completely resetting the `forward` function, which would result in every exit being permanent in the forward graph, which is impractical once multiple exits need to be added.
 
 The following five major overhauls to the implementation were made to address all of these shortcomings.
 
 === Unparse Instead Of Compile
-- This required multiple extra classes
-- Firstly, to save replaced function, `ast.unparse()` was used, this could take the updated ast nodes and unparse them into the equivalent python that would have generated them. it has some limitations described in the documentation but none apply
-- It was chosen to rewrite the unparsed classes back into the file they were originally loaded from, this meant the code could be simplified as it didnt need to decide which version of the model should be loaded, but has the annoyance on both not formatting the written code to PEP8, and since it rewrites to the same file it means models need to be constantly committed in git
-- Both minor annoyances and do not effect the technical working of the code, and has the greatly added benefit of making it exceptionally easy to see how the model is updated
+To enable easier debugging, the Python code equivalent to the AST was saved to a file using the `ast.unparse()` function. This function takes an AST as input, and produces Python code which corresponds to the AST. This code is then written to a file to verify whether the entropy threshold was correctly set. `ast.unparse()` has some limitations, in particular it can fail if the AST being unparsed is too complex in terms of depth, and it also isn't guarenteed to perfectly invert `ast.parse()`. That is, `ast.unparse()` can produce different code to the code which originally produced the AST. Neither of these limitations come into play for this implementation however as exits are kept simple and there is no original code being parsed, exits are produced directly from a prewritten AST.
+
+To keep track of each exit's individual AST to allow manipulation of parameters like the entropy threshold, a new class called `EarlyExit` was used. This class stored the exit's AST, and had multiple methods which manipulated the return ID and the threshold of an exit. This was not done using AST visitors as in the original naive implementation, but as the exact layers for each exit are already known, they were directly manipulated. The `ExitTracker` class was then modified to contain a list of AST nodes and `EarlyExit`s to represent the current `forward` function. The `ExitTracker` then handled creating new exits and saving the `forward` function to a file. This was complicated as the current `forward` function was now a list of multiple different classes, so when saving, a new list was created with the nodes and each exit's AST being added, before unparsing.
+
+It was also chosen to overwrite the original class the model was created from. This was done as otherwise it would become complicated to keep track of newly written modules, and enabling use of the latest model in later runs of the code. This has some annoyances. If the models are committed in a source version control program such as Git, the models will freqently change and need to be recommitted. `ast.unparse()` also does not unparse code to be PEP8 compliant, which describes how Python code should be formatted, meaning external tools need to be used to keep the models module formatted for readability. Neither are technical limitations and have no bearing on the operation of the code, but are some minor nuisances for developers. These do not outweigh the benefits of having easily debuggable models, and the ability to correctly edit exits after they have been added which is essential to allow exit removal during training.
 
 === Reloading An Overwritten Module
-- Once the file was rewritten, the module and the model had to be reloaded. The module would need to be reload in any other module it was loaded in as well
-- To do this, the classes `ReloadableModel` was written. It would contain the model type, the arguments used to contruct the model, and the actual instance of the model
-- Whenever a model is created, it should be created by this wrapper class, and whenever a function needs the model, it should access it from the wrapper
-- The wrapper has a reload function which will save the weights of the instance of the model, use importlib to reload the models module, recreate the model with the updated structure, and then load back in the temporarily saved weights
-- This is also where the freezing of the model is placed, this is because it is assumed that a model is trained before it is reloaded
+Once the model file has been rewritten, the model must be reinitialised, as the model code is compiled and stored in memory the first time it is loaded. It is relatively easy to just reload a module with `importlib.reload()`, however it becomes tricky when needing to ensure the state of the model besides the added instructions is kept identical between reloads. Reloading is further complicated by the fact that reloading with importlib only reloads the import in the current module and not globally. This means if the model is being referenced in multiple modules, as is done in this implementation since the training of models and addition of exits are implemented in different modules, both sets of the model must be reloaded. This becomes almost impossible to scale as keeping track of when to reload is incredibly tricky. To solve this, a new class called `ReloadableModel` was introduced. 
+
+This class holds a reference to the model, and all of the parameters used to create the model. include the actual model class, any arguments passed to the constructor and any extra needed parameters. Whenever code needs to make use of the model, it should be accessed through a `ReloadableModel` instance, as that guarentees that the model being used is the reloaded version. Model creation is changed from 
+
+```python
+model = models.ResNet(models.BasicBlock, [3, 4, 6, 3])
+```
+to
+```python
+model = helpers.ReloadableModel(models.ResNet, models.BasicBlock, [3, 4, 6, 3])
+```
+
+To reload the model itself, the following steps are taken:
++ Save the parameters list for the model to a temporary file, which in PyTorch can be fetched by calling `model.state_dict()`.
++ The module the model is stored in is reloaded.
++ The stored values which were originally used to create the model are then reused when calling the models constructor.
++ The model parameters are readded to the model from the temporary file. It is important that the parameters are loaded with strict loading disabled. This is because the reloaded model will have a few extra potential parameters for the added layers which are not matched in the temporary file.
+
+At this point, the layers from the base model are frozen. If these layers aren't frozen, they will be updated by the training of exits. This will ruin the backbone model's ability to extract necessary features from the input rendering it unusable. To do this, any layers whose name does not begin with "exit" has it's `requires_grad` option set to false. This technically could lead to issues if a model's implementation used layers with a name beginning with exit, but in practice from analysing implementations in the torchvision library, this isn't a practical issue. This will leave all of the exits capable of training without compromising the backbone model. This makes the assumption that the model is trained before being reloaded but this seems to be a reasonable assumption as there is little reason to reload until after the backbone model has been trained.
 
 === Untrainable Layers
-- The ast generation needed to be adapted to first set the exit layers in the init function, and then to use those layers in the forward function
-- This is because layers declared in the forward function are not part of the named parameters list in the pytorch model, which are the only parameters the autograd engine will update
-- LazyLayers were used when creating the instructions in the init function as it was easier than calculating dimensions, the model needs to be run with dummy data once initialised for the dimensions to be calculated though
-- This has the added benefit of the approach being more expandable by easily allowing more complicated instructions to be used in the exit architecture if needed, such as a Conv2D
+The weights for the exit layers still do not train correctly with this set up. This is due to a quirk of PyTorch's autograd engine which completes the backpropogation. Only layers included in a models `named_parameters` list are updated in the backpropogation. However no layers defined in the `forward` function, as was done with the linear layers as shown in @exitcode, are included in the `named_parameters` list. Only layers which have declared in the `__init__` function are updated. To solve this, the same methods used to update the `forward` function in `ExitTracker` are used to update the `__init__` function. `EarlyExit` was also modified to keep track of the layers which are needed for it's exit, and could modify the name of the layer from `self.exitX` to `self.exitY` to correspond to an updated ID. This would allow the freezing of the backbone model to continue to work while keeping the layers seperated. This is not limited to single instructions and it is possible to have deeper exits with multiple layers for each exit as `EarlyExit` stores a list of layers which it needs.
+
+When creating the `exitX` layers, the naive solution computed the dimensions needed manually. As every instruction may require slightly different treatment to calculate it's dimensions, this became complicated. To solve this, lazy layers were used instead. These are an experimental feature in PyTorch where the layers can calculate their own input dimensions. This requires a model to be run with a sample inference of the expected input dimensions for runtime samples, and the layers will then be initialised with the correct dimensions. This is also added to the reloading functionality of the `ReloadableModel`, and even if the model doesn't contain lazy layers, the model will still function. While still experimental, lazy layers makes the possbility of deep early exits easy to implement with simply a different list of AST nodes needing to be given to an `EarlyExit` instance.
 
 === Setting Threshold Levels
+There is no clear consensus on what method is best for chosing an entropy threshold. @BranchyNet simply uses 0.5 as the threshold for all branches in it's implementation, whereas @earlyexitmasters uses a trainable threshold. The method developed to set the threshold for exits in this implementation is based on one assumption: no exit should be expected to achieve a higher accuracy than that of the backbone model. After running the testing data through an exit, a set of graphs can be created, plotting accuracy against entropy.
+
+#figure(
+  image(""),
+
+)
+
 - Needed to edit the threshold for each exit
 - Using the test data after a full train of an exit, determine the entropy level where the overall accuracy of the exit would match the final exit
 - Set that threshold
@@ -145,7 +205,11 @@ The following five major overhauls to the implementation were made to address al
 - To solve this, train from bottom up
 - Would require a more sophisticated approach if a searching algorithm is used, as exits would need to be temporarily disabled but keep track of the correct threshold to reenable
 
-=== Pruning Bad Exits
+=== Training and Removing Exits
+- To train many exits, some kind of search would be ideal to reduce training time
+- This is complicated to add, as typical searching algorithms do not involve inserting objects, which is what is required instead
+- Instead, insert all exits at the beginning, train them all then prune
+- To train, exits are trained from bottom up. This is to avoid needing to temporarily disable trained exits. Instead, all are disabled bar the last, then it is trained and given an accurate threshold, then the next exit is enabled with a threshold such that all inferences use that exit, it is trained and set to the correct threshold, and repeat.
 - What defines a bad exit is unclear, and can be defined multiple ways
 - A simple pruning method of removing exits with an entropy of less than 0.1 was chosen as a starting point as it was observed that exits with a threshold below this generally weren't being used
 - Removing an exit required a way of tracking which parts of the ast were exits
@@ -163,4 +227,5 @@ The following five major overhauls to the implementation were made to address al
 - All of the elements of the code that have potential for interesting future work are also very modular, so it will be easy to expand the implementation to try different search methods and different exit architectures
 - None of the code is particularly pytorch specific, and much of the code can be quickly adapted to other frameworks
 
-#bibliography("refs.bib")
+#heading(numbering: none, "References")
+#section-bib()
