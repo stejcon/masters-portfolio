@@ -90,7 +90,7 @@ table(
   "0.9"
 ),
 caption: "Chosen Hyperparameters"
-)
+) <hyperparameters>
 
 == Initial Implementation
 A single exit was added in a particular location in the ResNet `forward()` function. This was done to allow testing the addition and training of an AST based exit before adding the complexity of an algorithm to place useful early exits. The exits were created by compiling a list of AST nodes composed of the AST from the `forward()` function of the model, and the AST corresponding to the following code:
@@ -201,7 +201,7 @@ There is no clear consensus on what method is best for chosing an entropy thresh
 
 The limit of this graph is the accuracy of an exit when all inferences use that exit. At any point earlier than that, the accuracy of the model for a given threshold is found. This does not include data on how often the exit at this point would be used, just how accurate it would be when used. To set the threshold, the accuracy of the backbone model is created. This is stored in `ExitTracker` as the target accuracy. Once an exit is trained, an epoch of testing data is ran with all inferences using the exit. The entropy which corresponds to the target accuracy is then used as the entropy threshold for that exit. The setting of the threshold is controlled by the `EarlyExit` class.
 
-== Training Multiple Exits
+== Training Multiple Exits <bottomup>
 As shown in @exitcode, the exit will only return if the condition of entropy being below the threshold is met. This causes some headaches for training the exits. To correctly control the training of the exits, this condition should always be met until an accurate threshold can be calculated. However, if exits are trained from first exit to last exit, and the first exit has it's correct threshold set, there is no way for further exits to have all inferences flow through them as the first exit will exit at least some of the time. To solve this, all exits are added to all possible locations in the `forward` function once the backbone model is trained, and they are all disabled. That is, the threshold is set to 0, and no inference can result in an entropy of 0 or less. Then, the bottom exit is enabled by setting it's threshold to a high value, as described for the naive solution. Once that exit is trained, it's threshold is correctly set, and the next exit which is less deep has it's threshold set high. This works as the deeper exit will never be used during the training cycle since the next exit has it's threshold so high. 
 
 Training bottom-up makes the implementation far simpler than training top-down. The most complicated section is `ExitTracker` must keep track on the index of the currently training exit. This tracking is not smart, and assumes that exits are present at all possible locations, which is between every line of the `forward` function. This method was chosen due to time constrictions, and would need to be redesigned if a smarter searching method for optimal exit locations was used.
@@ -222,7 +222,7 @@ This solution is significant as no literature has dealt with the issues involved
 As the major trappings of automatically adding exits have been covered, extending the solution to account for more potential areas of research should be not only possible, but feasible. There are some improvements still left to be made which will be discussed in @futurework.
 
 = Source Code
-The source code for the 
+The source code for this implementation can be found at https://github.com/stejcon/masters-portfolio. `EarlyExit`, `ExitTracker` and all nodes related to exit generation and addition can be found in `generation.py`. `ReloadableModel` and all functions used to train models can be found in `helpers.py`. `main.py` is where the actual training was done, but this was mainly used as a live script and frequenctly changed. It focused on constructing a `ReloadableModel` and then calling functions from `helpers.py`.
 
 #heading(numbering: none, "References")
 #section-bib()

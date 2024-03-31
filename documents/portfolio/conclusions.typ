@@ -34,7 +34,7 @@
   section-refs.update(())
 })
 #set heading(offset: 1)
-= Observations
+= Observations <observations>
 
 = Conclusions
 
