@@ -1,0 +1,10 @@
+[
+    {
+        "Exit Number": 0,
+        "Entries": 10000,
+        "Percentage": "100.00%",
+        "Avg Entropy": 0.466336199319661,
+        "Avg Time (ms)": 2.102225613594055,
+        "Accuracy (%)": "83.17%"
+    }
+]

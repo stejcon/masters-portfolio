@@ -1,0 +1,50 @@
+[
+    {
+        "Exit Number": 0,
+        "Entries": 6938,
+        "Percentage": "69.38%",
+        "Avg Entropy": 1.5510015367865313,
+        "Avg Time (ms)": 5.366805686356871,
+        "Accuracy (%)": "54.74%"
+    },
+    {
+        "Exit Number": 6,
+        "Entries": 102,
+        "Percentage": "1.02%",
+        "Avg Entropy": 3.0315952090656055,
+        "Avg Time (ms)": 2.769203747020048,
+        "Accuracy (%)": "47.06%"
+    },
+    {
+        "Exit Number": 7,
+        "Entries": 2925,
+        "Percentage": "29.25%",
+        "Avg Entropy": 2.978908032718887,
+        "Avg Time (ms)": 4.364917869241829,
+        "Accuracy (%)": "59.49%"
+    },
+    {
+        "Exit Number": 5,
+        "Entries": 32,
+        "Percentage": "0.32%",
+        "Avg Entropy": 2.312429890036583,
+        "Avg Time (ms)": 1.6463398933410645,
+        "Accuracy (%)": "40.62%"
+    },
+    {
+        "Exit Number": 3,
+        "Entries": 1,
+        "Percentage": "0.01%",
+        "Avg Entropy": 2.008765459060669,
+        "Avg Time (ms)": 0.6430149078369141,
+        "Accuracy (%)": "100.00%"
+    },
+    {
+        "Exit Number": 1,
+        "Entries": 2,
+        "Percentage": "0.02%",
+        "Avg Entropy": 0.8420005142688751,
+        "Avg Time (ms)": 0.2307891845703125,
+        "Accuracy (%)": "0.00%"
+    }
+]

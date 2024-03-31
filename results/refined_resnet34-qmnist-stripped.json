@@ -1,0 +1,26 @@
+[
+    {
+        "Exit Number": 7,
+        "Entries": 38880,
+        "Percentage": "64.80%",
+        "Avg Entropy": 0.6630412327035602,
+        "Avg Time (ms)": 3.6737093709623863,
+        "Accuracy (%)": "97.45%"
+    },
+    {
+        "Exit Number": 0,
+        "Entries": 18207,
+        "Percentage": "30.34%",
+        "Avg Entropy": 0.18301996536745935,
+        "Avg Time (ms)": 4.540848183318929,
+        "Accuracy (%)": "94.53%"
+    },
+    {
+        "Exit Number": 5,
+        "Entries": 2913,
+        "Percentage": "4.86%",
+        "Avg Entropy": 1.3724334089566947,
+        "Avg Time (ms)": 0.9852802061846361,
+        "Accuracy (%)": "97.67%"
+    }
+]
