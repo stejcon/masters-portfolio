@@ -216,22 +216,13 @@ There isn't a solid definition for what defines a bad exit. In general, if an ex
 
 If exit's are not computationally significant, they could be kept in the model with no consequence. However, if they are computationally significant, then bad exits should be removed. While both above methods could potentially work, time restrictions caused a simpler method to be adopted. From testing, exit's with a threshold below approximately `0.1` appeared to never be utilised, while exit's with thresholds above this did appear to be used, no matter how infrequently. Any exit's with a threshold below 0.1 were removed to allow more accurate analysis of exits which are utilised to prevent effecting the inference time of the model as heavily.
 
-== Expanding To Other Models And Datasets
-- Only use ResNet in this implementation
-- The implementation of other models in torchvision weren't helpful for testing exits
-- ResNet implementation made an assumption that all inputs were 3 channel RGB images
-- Needed to rework the ResNet model as well as the `ReloadableModel` to correctly initialise the model with the number of channels needed
-
-One of the questions which needs to be answered about early exits is how the depth of a model effects the performance of early exits. That is, there is no documentation on whether exits near the end of the model are more beneficial to runtime than those at the beginning, as while earlier exits exit quicker, they will exit less frequently. To analyse this effect, ResNet18, ResNet34 and ResNet50 were chosen as the models for testing. While utilising ResNet101 and ResNet152 would have been preferable, the available GPU did not have enough memory to load these models.
-
-Multiple datasets were also chosen. Cifar10, Cifar100, QMNIST and Fashion-MNIST were chosen as the datasets to be tested. Cifar10 was chosen due to its popularity in literature, Cifar100 was chosen both due to popularity and to examine the effect of having a higher number of classes on early exits. ImageNet would also have been an interesting dataset to study but due to resource contraints this was not feasible. QMNIST and Fashion-MNIST were chosen to analyse whether having a lower number of channels in the input images would improve the performance of earlier exits as both datasets are in black-and-white.
-
-The move to models having either 3 channel images (RGB) or 1 channel (B&W) caused some issues. Most parts of the implementation had not considered single channel inputs, including the torchvision implementation of ResNet which was utilised. To solve this, mutliple model definitions were created to be dataset dependent, and the number of input channels was changed from 3 to 1. The `ReloadableModel` class was then adapted to accept a parameter stating the number of input channels to control the dummy data used to initialise the lazy layers.
-
 = Why This Solution Is Significant <b1>
 This solution is significant as no literature has dealt with the issues involved in automatically adding exits to a model. Many of the challenges described above have not been discussed or documented, meaning the issues which appeared throughout the implementation of the above features were unexpected and were major blockers as they had been undiscovered. This solution lays the general groundwork for how exits should be automatically added, with most features being isolated and easy to change. To implement deeper exits, a different set of nodes can be sent to instances of `EarlyExit`. To provide searching for exits, all code can be excapsulated in `ExitTracker`. The approach described above, while implemented on PyTorch, should be relatively easy to reimplement on other frameworks.
 
-As the major trappings of automatically adding exits have been covered, extending the solution to account for more potential areas of research should be not only possible, but feasible. There are some improvements still left to be made which will be discussed in @futurework
+As the major trappings of automatically adding exits have been covered, extending the solution to account for more potential areas of research should be not only possible, but feasible. There are some improvements still left to be made which will be discussed in @futurework.
+
+= Source Code
+The source code for the 
 
 #heading(numbering: none, "References")
 #section-bib()
