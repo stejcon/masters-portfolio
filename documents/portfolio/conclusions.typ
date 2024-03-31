@@ -38,7 +38,21 @@
 
 = Conclusions
 
-= Future Work
+= Future Work <futurework>
+With the groundwork completed to correctly adding exits and allowing them to be trained, the implementation can be extended with some new features to allow further research.
+
++ A
+Text
+
++ B
+text
+
++ C
+text
+
++ D
+text
+
 - Train with weighted method from BranchyNet
 - Generate split models for use in split computing, should be trivial
 - Use NAS to generate the exit architecture
