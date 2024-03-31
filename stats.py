@@ -71,6 +71,7 @@ def process_json(file_path):
 
 # Get all JSON files in current directory
 json_files = [file for file in os.listdir() if file.endswith(".json")]
+json_files.sort()
 
 # Process each JSON file
 for file in json_files:
