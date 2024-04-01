@@ -46,36 +46,121 @@
 
 #set heading(offset: 1)
 = Choice of Models and Datasets
-- Only ResNet
-- Models from torchvision only had 4 lines in forward and would take too much time to reimplement to make it workable for exits
-- The implementation also hard codes how many lines to ignore at the end of the forward function to ignore the ResNet classifier. This is because unlike other models, ResNet doesnt use `self.classifier`. This again would take time to reimplement in which case the implementation could be improved by removing the hard coded number of lines to remove, and only insert exits before `self.classifier`.
+ResNet was the only model architecture tested for this project due to various reasons. The model architecture was taken directly from the TorchVision source with a few minor changes as described in Appendix B @TorchVision. Most models implemented in TorchVision follow a pattern similar to the following from the SqueezeNet implementation#footnote("https://github.com/pytorch/vision/blob/2c4665ffbb64f03f5d18016d3398af4ac4da5f03/torchvision/models/squeezenet.py#L94"):
 
-- Datasets of choice were CIFAR10, CIFAR100, QMNIST, Fashion-MNIST
-- CIFAR10 and CIFAR100 are popular in literature, making them good for comparison
-- Also gives insight into how the number of classes effect exits
-- QMNIST and Fashion-MNIST were chosen to analyse how the exits perform when the number of channels is different to that of the CIFAR datasets
-- Ideally, Resnet101 and Resnet152 would have been also been used to have a better idea of how depth effects exits, along with Imagenet dataset, but resource constraints in terms of GPU power made these impossible to train.
+```python
+def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.classifier(x)
+        return torch.flatten(x, 1)
+```
+
+`self.features` is a function which calls all important layers for the model. The methodology described by this project to place exits between the lines of the `forward` function does not function with this pattern. Either `self.features` would need to be recursively analysed to place exits, which would majorly complicate the implementation, or the model would need to be reorganised to unwrap the `self.features` function into the forward function. Both of these changes would take significat time to complete, so it was chosen to avoid implementations which followed this pattern.
+
+ResNet uses the following `forward` function taken from the ResNet implementation in TorchVision#footnote("https://github.com/pytorch/vision/blob/2c4665ffbb64f03f5d18016d3398af4ac4da5f03/torchvision/models/resnet.py#L266"):
+
+```python
+def _forward_impl(self, x: Tensor) -> Tensor:
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+
+        return x
+```
+
+This `forward` function is far easier to manipulate as exits can be placed between each "layer". This layers are groups of ResNet blocks, so exits aren't truly placed at all possible locations, but it is a step closer to an ideal model. ResNet doesn't use the `self.classifier` function to wrap it's exit which would have been beneficial to avoid the hardcoded number of lines skipped at the end as referred to in Appendix B.
+
+The chosen datasets for testing were CIFAR10, CIFAR100, QMNIST, and Fashion-MNIST. CIFAR10 and CIFAR100 were chosen due to their widespread use in previous literature. Both datasets include the same set of images, but it is important to use both due to the different number of output classes. No analysis was done by any paper on the effect of a higher or lower number of output classes on an exits performance. QMNIST and Fashion-MNIST were chosen for a similar reason. Only three channel (RGB) images had been analysed and one channel images had been ignored.
+
+Ideally, the models ResNet101 and ResNet152 would have been tested as well. However, resource contraints meant there was no way to train these models as they were too large for the available GPUs. Imagenet also was not chosen as a dataset due to it being so large, which would have taken far too long to train on the available hardware.
 
 = Choice of Training Scheme
-- Using the weighted loss method as shown in @BranchyNet wasn not feasible due to the time needed to identify the hyperparameters, with each exit requiring a new weight hyperparameter. While this would likely be beneficial, it was not feasible for this project.
-- Instead, split training was used, where every exit was trained seperately. It also is inspired by knowledge distillation, as the accuracy of the final exit is used as a hyperparameter, which is akin to training based on labelling done by the backbone model.
-- The hyperparameters chosen from @hyperparameters were kept for all models. Good hyperparameters take a long time to identify and there are many techniques of doing so. Chosing the backbone models hyperparameters is out of scope for this project, so the same hyperparameters were kept as all resnet models should perform decently with the same hyperparameters.
+Split training was utilised for testing, similar to what was used by @individualtraining. Using the weighted loss method as shown in @BranchyNet wasn not feasible due to the time needed to identify the hyperparameters, with each exit requiring a new weight hyperparameter. While this would likely be beneficial in terms of accuracy as the exits can effectively teach each other, it was not feasible for this project. The training approach was also inspired by knowledge distillation, as the accuracy of the final exit is used as a hyperparameter, which is akin to training based on labelling done by the backbone model. The hyperparameters chosen from @hyperparameters were kept for all models. Good hyperparameters take a long time to identify and there are many techniques of doing so. Chosing the backbone models hyperparameters is out of scope for this project, so the same hyperparameters were kept as all resnet models should perform decently with the same hyperparameters. Exits were only enabled after the backbone model was trained, and they were trained in a bottom-up fashion as described in @bottomup.
 
 = Method of Generating Results
-- Train backbone model
-- Train exits bottom up as described in @bottomup
-- Once all exits are trained, run testing data for the dataset through the model with a batch size of 1, as @BranchyNet notes early exiting makes little sense when used with batches of more than 1
-- Record the entropy, the time taken, whether the output was correct, and the exit used
-- Generate tables for all of this data for every model
-- Generate graphs showing the average time taken and the accuracy of each model across all exits
+In `models.py`, a series of models were added. Almost all models are identical, but needed to be kept as seperate classes to allow writing the `forward` and `__init__` function to work. Each model was trained with its respective dataset, and all changes were saved into `models.py`. This resulted in twelve trained models, with each of ResNet18, ResNet34 and ResNet50 trained on CIFAR10, CIFAR100, QMNIST and Fashion-MNIST. The training used a changing script in `main.py`. The script frequently changed as the training was not completed in a single run. Each of the parameters at the beginning of the script was changed depending on the models which were to be trained. Once a model was trained and tested, the `models` module needed to be reloaded due to the rewritten model conflicting with the version stored in memory. The list was reinitialised to allow the references to the class to be correct.
 
-- After analyse, the branched models did not prune well with many exits being used less than 1% of the time. To allow the analysis of the other used exits fairly, exits which were used less than 1% of the time were manually removed and recorded as `Stripped` models in `models.py`.
+#show figure: set block(breakable: true)
+#figure(
+```python
+def main():
+    helpers.createModelsFolder("models")
+
+    resnet_names = ["34"]
+    resnet_sizes = [[3, 4, 6, 3]]
+    datasets = ["cifar10", "cifar100", "qmnist", "fashion-mnist"]
+    model_classes = [
+        models.ResNet34Cifar10,
+        models.ResNet34Cifar100,
+        models.ResNet34QMNIST,
+        models.ResNet34Fashion,
+    ]
+
+    for i, (name, size) in enumerate(zip(resnet_names, resnet_sizes)):
+        for j, dataset in enumerate(datasets):
+            print(
+                f"Doing {model_classes[i*len(resnet_names)+j]}, should be {name}/{size} with {dataset}"
+            )
+            _, _, test = helpers.get_custom_dataloaders(dataset, 1)
+            model = helpers.ReloadableModel(
+                next(iter(trainLoader))[0].shape[1],
+                model_classes[i * len(resnet_names) + j],
+                models.BasicBlock,
+                size,
+                len(trainLoader.dataset.classes),
+            )
+            helpers.trainModelWithBranch(
+                model, trainLoader, validLoader, testLoader, test
+            )
+            torch.save(model.getModel().state_dict(), f"models/resnet{name}-{dataset}")
+            helpers.generateJsonResults(
+                model.getModel(), f"resnet{name}-{dataset}", test
+            )
+            importlib.reload(models)
+            model_classes = [
+                models.ResNet34Cifar10,
+                models.ResNet34Cifar100,
+                models.ResNet34QMNIST,
+                models.ResNet34Fashion,
+            ]
+```,
+caption: "The core script used for training", placement: none)
+
+The test dataset used must have a batch size of 1, as @BranchyNet noted that a batch size greater than this effects the ability of the model to exit early. This is because each entry in the batch will have a different entropy, meaning the threshold condition cannot be met. The results which are saved are the entropy, accuracy and time taken for each inference grouped by exit. These results are shown in @tables for completeness, but only a few parts will need to be noted.
+
+To generate the same results for the backbone model without using any early exits, the parameters saved from the branched models were loaded into a base ResNet model with no modifications to the `forward` function. This cut down on training time as the backbone layers from the banched models were unchanged by the exits, and the inference time was also guarenteed to not be affected by any of the exits.
+
+It is obvious from the tables in @tables that the inference time was majorly effected by the exits. Most exits are also hardly ever used, with most sitting below 1% utilisation despite the efforts to prune exits. A third set of models were created called the `Stripped` models, where these underperforming exits were solely due to a bad pruning mechanism. These stripped models had the exits removed from the `forward` function, and the parameters were loaded from the saved branched models. The same rounds of testing were then carried out.
 
 = Effect of Automatically Generated Early Exits
-- contradicting the statement made by @optimalbranchplacement, simple exits with just a fully connected layer do not work well. As shown in the graphs, the time taken rises dramatically when branches are used, even though the number of layers is small.
-- As the number of layers increases, the time difference between the base model and branched model shrinks significantly, although the branched remains slower. This is likely due to the large input dimension on fully connected layers. Fully connected layers scaled quadratically, so as the input size increases, the time taken to complete the operation increases quadratically.
+The average time taken, and average accuracy for all models are shown in the following figure:
 
-- Accuracy was also always slightly below that of the base model. When looking at the accuracy of indivi
+#figure(
+grid(
+  columns: (auto),
+    rows: (auto, auto, auto, auto, auto, auto),
+    image("./images/resnet18_accuracy.png"),
+    image("./images/resnet34_accuracy.png"),
+    image("./images/resnet50_accuracy.png"),
+    image("./images/resnet18_time_taken.png"),
+    image("./images/resnet34_time_taken.png"),
+    image("./images/resnet50_time_taken.png"),
+  ),
+  placement: none,
+)
+
+= Summary of Results
+Without manually stripping exits, the model is severly slowed down. When the model is stripped, performance is comparable in terms of inference time with some datasets performing slightly better. There is a consistent drop in accuracy for branched models across all datasets, with only QMNIST remaining somewhat equal. This is to be expected as MNIST is a reasonably simple dataset to accurately classify. The reasons for this are discussed in @observations
 
 #let table-json(model-name) = {
   let data = json("./results/refined_" + model-name + ".json")
@@ -87,12 +172,13 @@
         x.values().map(a=>str(a)).flatten()
       }).flatten(),
     ),
-    caption: "Data on exits for model " + model-name
+    caption: "Data on exits for model " + model-name,
+    placement: none,
   )
 }
 
 
-= All Results Tabulated
+= All Results Tabulated <tables>
 The raw results from each model are printed here for completeness sake. Any outputs of interest has been discussed above or in @observations
 #table-json("resnet18-cifar10-base")
 #table-json("resnet18-cifar10-branched")

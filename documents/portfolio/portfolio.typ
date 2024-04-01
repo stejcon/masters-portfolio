@@ -1,10 +1,16 @@
 #show bibliography: none
 #bibliography("refs.bib")
+#set figure(placement: auto)
 #align(center, text(weight: "bold", size: 24pt, "Evaluting the Effects of Automatically Added Early Exits on the Performance of Convolutional Neural Networks"))
 
 #align(center, text(weight: "bold", size: 18pt, "Project Portfolio"))
 #pagebreak()
 #heading(outlined: false, [Acknowledgements])
+#import "@preview/wordometer:0.1.1": word-count, total-words
+
+#show: word-count
+
+#total-words
 
 #pagebreak()
 #let clean_numbering(..schemes) = {

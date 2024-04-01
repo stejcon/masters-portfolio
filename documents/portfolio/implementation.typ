@@ -63,9 +63,9 @@ After the exits are added, the model would then be compiled to a binary. However
 There is potential in this method to be useful due to its portability. However there were too many obvious issues that would need to be solved given the timeframe of the project. Utilising TableGen can be difficult with work with since debugging the model after running the compiler passes can lead to long output messages with little important information. Build times were concerning, as rebuild ONNX-MLIR on the available hardware took a significant amount of time, and the model would then need to be trained afterwards anyways. Attempting to correctly initialise layers would also take significant time away from testing the automatic insertion of layers as well. Due to this, a training-time approach was taken instead.
 
 = Training-Time Solution
-PyTorch was the obvious choice as a framework to implement this solution. It has a very structured method for creating models, meaning any AST manipulations created to mimic the compiler passes described above would be easier to create. It also comes with the torchvision library, which includes many implementations of popular models and wrappers around popular datasets to make training far easier. The documentation for PyTorch is also high quality meaning any issues could potentially be solved far quicker.
+PyTorch was the obvious choice as a framework to implement this solution. It has a very structured method for creating models, meaning any AST manipulations created to mimic the compiler passes described above would be easier to create. It also comes with the torchvision library @TorchVision, which includes many implementations of popular models and wrappers around popular datasets to make training far easier. The documentation for PyTorch is also high quality meaning any issues could potentially be solved far quicker.
 
-To begin the implementation, it was chosen to use ResNet34 as the base model, trained on the CIFAR10 dataset. This combination has the benefit of both being relatively quick to train to the available hardward, taking approximately 1.5 hours to train the model for 20 epochs on a Nvidia 3070. The implementation of ResNet34 was taken from the torchvision library included in PyTorch. The model was trained multiple time with varying hyperparameters to identify the hyperparameters which cause convergence the quickest, which proved to be:
+To begin the implementation, it was chosen to use ResNet34 as the base model, trained on the CIFAR10 dataset. This combination has the benefit of both being relatively quick to train to the available hardward, taking approximately 1.5 hours to train the model for 20 epochs on a Nvidia 3070. The implementation of ResNet34 was taken from the torchvision library included in PyTorch @TorchVision. The model was trained multiple time with varying hyperparameters to identify the hyperparameters which cause convergence the quickest, which proved to be:
 
 #figure(
 table(
@@ -89,7 +89,8 @@ table(
   "Momentum",
   "0.9"
 ),
-caption: "Chosen Hyperparameters"
+caption: "Chosen Hyperparameters",
+placement: top
 ) <hyperparameters>
 
 == Initial Implementation
@@ -111,6 +112,7 @@ This structure was based on the pooling block as described in @earlyexitmasters 
 
 The ExitTracker class was used to track the original and current state of the `forward()` function, and would then override the `forward()` function dynamically. The `exitTransformer` added the above exit structure approximately half way through the ResNet forward graph. The current forward AST was then compiled, and replaced the bound `forward` function for the class of the stored model, which in this case was ResNet. Replacing the function required accessing the global variables, finding the correct class, and then setting `forward` function to the updated, compiled `forward` function. Confusingly, `__get__` is used in this context to bind the new `forward` function to the model class, and the `forward()` function then needs to be set to the bound updated function. This is an artifact of Python's descriptor API.
 
+#figure(
 ```python
 class ExitTracker:
     def __init__(self, model):
@@ -131,17 +133,18 @@ class ExitTracker:
         exec(code_object, globals())
         bound_method = globals()["forward"].__get__(self.model, self.model.__class__)
         setattr(self.model, 'forward', bound_method)
-```
+```, caption: "ExitTracker class used to track the state of the forward function AST")
 
 The `exitTransformer` used an AST visitor which passes over the original AST, and performs an operation on every `Assign` node. To specifically place the exit to ensure training would work, a series of checks were done to check if the current assign was for `layer1`, and if this is true, to append the exit.
 
+#figure(
 ```python
 class AddExitTransformer(ast.NodeTransformer):
     def visit_Assign(self, node):
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) and node.value.func.attr == "layer1":
             return [node] + exitAst
         return node
-```
+```, caption: "Example of an AST transformer used to manipulate the forward function")
 
 To allow the exit to train correctly, the threshold was initially set to 3,000,000, as to have such a high value that no inference would result in an entropy above this. The exit was then trained using the same hyperparameters as the final exit. After this, the entropy was changed to 0.5 by recompiling the `forward` function again. This allowed the exit to train, but it would have somewhat incorrect entropy threshold.
 
@@ -182,7 +185,7 @@ To reload the model itself, the following steps are taken:
 + The stored values which were originally used to create the model are then reused when calling the models constructor.
 + The model parameters are readded to the model from the temporary file. It is important that the parameters are loaded with strict loading disabled. This is because the reloaded model will have a few extra potential parameters for the added layers which are not matched in the temporary file.
 
-At this point, the layers from the base model are frozen. If these layers aren't frozen, they will be updated by the training of exits. This will ruin the backbone model's ability to extract necessary features from the input rendering it unusable. To do this, any layers whose name does not begin with "exit" has it's `requires_grad` option set to false. This technically could lead to issues if a model's implementation used layers with a name beginning with exit, but in practice from analysing implementations in the torchvision library, this isn't a practical issue. This will leave all of the exits capable of training without compromising the backbone model. This makes the assumption that the model is trained before being reloaded but this seems to be a reasonable assumption as there is little reason to reload until after the backbone model has been trained.
+At this point, the layers from the base model are frozen. If these layers aren't frozen, they will be updated by the training of exits. This will ruin the backbone model's ability to extract necessary features from the input rendering it unusable. To do this, any layers whose name does not begin with "exit" has it's `requires_grad` option set to false. This technically could lead to issues if a model's implementation used layers with a name beginning with exit, but in practice from analysing implementations in the torchvision library @TorchVision, this isn't a practical issue. This will leave all of the exits capable of training without compromising the backbone model. This makes the assumption that the model is trained before being reloaded but this seems to be a reasonable assumption as there is little reason to reload until after the backbone model has been trained.
 
 Once the model had been reinitialised, the model could not be moved to the correct device using the normal `.to(device)` method. This is important as the model and the input data need to on the same device, but the default device is the CPU. For some undiscovered reason, the model became split between both the CPU and GPU and could not be moved. The only fix was to change the default device used by PyTorch to the GPU whenever the device was fetched. This method may be suboptimal as changing the default device does take a minor amount of time (approximately two seconds), but in the overall implementation this time is unimportant. For multi-device training, this may need to be investigated further but dur to resource limitations, multiple GPU's could not be accessed as the same time for testing.
 
@@ -195,7 +198,7 @@ When creating the `exitX` layers, the naive solution computed the dimensions nee
 There is no clear consensus on what method is best for chosing an entropy threshold. @BranchyNet simply uses 0.5 as the threshold for all branches in it's implementation, whereas @earlyexitmasters uses a trainable threshold. The method developed to set the threshold for exits in this implementation is based on one assumption: no exit should be expected to achieve a higher accuracy than that of the backbone model. After running the testing data through an exit, a set of graphs can be created, plotting accuracy against entropy. An example of an exits accuracy against entropy is shown in @accent.
 
 #figure(
-  image("./images/accuracy-entropy-graph.png", width: 60%),
+  image("./images/accuracy-entropy-graph.png", width: 80%),
   caption: "Sample graph of an exit's accuracy against entropy"
 ) <accent>
 
@@ -210,19 +213,19 @@ Training bottom-up makes the implementation far simpler than training top-down. 
 There isn't a solid definition for what defines a bad exit. In general, if an exit requires more computing power than continuing to the next exit, it isn't worth including that exit in the model. Another way of defining a bad exit is whether of not an exit can accurately predicate a percentage of inputs relative to it's depth in the model. Similar to the accuracy against entropy plots, dataset against entropy can be shown as
 
 #figure(
-  image("./images/dataset-vs-entropy.png", width: 60%),
+  image("./images/dataset-vs-entropy.png", width: 80%),
   caption: "Sample graph of an exit's dataset utilisation against entropy"
 ) <dataent>
 
 If exit's are not computationally significant, they could be kept in the model with no consequence. However, if they are computationally significant, then bad exits should be removed. While both above methods could potentially work, time restrictions caused a simpler method to be adopted. From testing, exit's with a threshold below approximately `0.1` appeared to never be utilised, while exit's with thresholds above this did appear to be used, no matter how infrequently. Any exit's with a threshold below 0.1 were removed to allow more accurate analysis of exits which are utilised to prevent effecting the inference time of the model as heavily.
 
-= Why This Solution Is Significant <b1>
+= Why This Solution Is Significant
 This solution is significant as no literature has dealt with the issues involved in automatically adding exits to a model. Many of the challenges described above have not been discussed or documented, meaning the issues which appeared throughout the implementation of the above features were unexpected and were major blockers as they had been undiscovered. This solution lays the general groundwork for how exits should be automatically added, with most features being isolated and easy to change. To implement deeper exits, a different set of nodes can be sent to instances of `EarlyExit`. To provide searching for exits, all code can be excapsulated in `ExitTracker`. The approach described above, while implemented on PyTorch, should be relatively easy to reimplement on other frameworks.
 
 As the major trappings of automatically adding exits have been covered, extending the solution to account for more potential areas of research should be not only possible, but feasible. There are some improvements still left to be made which will be discussed in @futurework.
 
 = Source Code
-The source code for this implementation can be found at https://github.com/stejcon/masters-portfolio. `EarlyExit`, `ExitTracker` and all nodes related to exit generation and addition can be found in `generation.py`. `ReloadableModel` and all functions used to train models can be found in `helpers.py`. `main.py` is where the actual training was done, but this was mainly used as a live script and frequenctly changed. It focused on constructing a `ReloadableModel` and then calling functions from `helpers.py`.
+The source code for this implementation can be found on GitHub#footnote("https://github.com/stejcon/masters-portfolio"). `EarlyExit`, `ExitTracker` and all nodes related to exit generation and addition can be found in `generation.py`. `ReloadableModel` and all functions used to train models can be found in `helpers.py`. `main.py` is where the actual training was done, but this was mainly used as a live script and frequenctly changed. It focused on constructing a `ReloadableModel` and then calling functions from `helpers.py`.
 
 #heading(numbering: none, "References")
 #section-bib()
