@@ -6,11 +6,9 @@
 #align(center, text(weight: "bold", size: 18pt, "Project Portfolio"))
 #pagebreak()
 #heading(outlined: false, [Acknowledgements])
-#import "@preview/wordometer:0.1.1": word-count, total-words
+I would like to extend my sincere thanks to Dr. Robert Sadlier for his constant guidance throughout the process of finding a research topic and his help in working around technical blockers with the project. His advice proved essential to finishing and presenting a solid implementation for this project. He ensured I was consistently using my time for the most important features of the implementation.
 
-#show: word-count
-
-#total-words
+I would also like to acknowledge the late Dr. Kevin McGuinness who inspired the project and presented me with many ways a research project could explore early exiting. Without his guidance this project would not have progressed in the direction it has, and would not have been as interesting or important.
 
 #pagebreak()
 #let clean_numbering(..schemes) = {
